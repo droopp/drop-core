@@ -120,7 +120,8 @@ handle_info(timeout, State) ->
 
     ppool_worker:start_worker(node_info_stream,
                              {cmd(lists:concat(["node_info_stream/node_info_stream ",
-                                    node(), " ", ?NODE_INFO_INTERVAL]),
+                                    node(), " ", ?NODE_INFO_INTERVAL, 
+                                    " -drop node_info_stream"]),
                                    "node_info_stream.log"
                                   ), ?NODE_INFO_TIMEOUT}
     ),
@@ -129,7 +130,8 @@ handle_info(timeout, State) ->
 
     ppool_worker:start_worker(node_collector,
                              {cmd(lists:concat(["node_collector/node_collector ",
-                                    os:getenv("DROP_VAR_DIR") ,"/db 1000 5 "]),
+                                    os:getenv("DROP_VAR_DIR") ,"/db 1000 5 ", 
+                                    " -drop node_collector"]),
                                    "node_collector.log"
                                   ), ?NODE_CLTR_TIMEOUT}
     ),
@@ -148,7 +150,8 @@ handle_info(timeout, State) ->
 
     ppool_worker:start_all_workers(flower, 
                               {cmd(lists:concat(["flower/flower ",
-                                    os:getenv("DROP_VAR_DIR") ,"/flows/ "]),
+                                    os:getenv("DROP_VAR_DIR") ,"/flows/ ",
+                                    " -drop flower"]),
                                    "flower.log"
                                   ), ?FLOWER_TIMEOUT}
     ),
@@ -159,8 +162,9 @@ handle_info(timeout, State) ->
                {cmd(lists:concat(["flower_sc_stream/flower_sc_stream ",
                               os:getenv("DROP_VAR_DIR"), " ", node(), " ",
                               ?FLOWER_SC_INTERVAL, " ",
-                              os:getenv("DROP_VIP"), " ", os:getenv("DROP_VIP_IFACE")]),
-                              "flower_sc_stream.log"
+                              os:getenv("DROP_VIP"), " ", os:getenv("DROP_VIP_IFACE"), 
+                              " -drop flower_sc_stream"]),
+                             "flower_sc_stream.log"
                              ), ?FLOWER_SC_TIMEOUT}
     ),
 

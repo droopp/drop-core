@@ -73,15 +73,15 @@ def get_ppool_stat(node):
             pinfo = proc.as_dict(attrs=["pid", "name", "cmdline",
                                         "cpu_percent", "memory_percent"])
 
-            if len(pinfo["cmdline"]) > 2:
-                if pinfo["cmdline"][-2] == "-plugin":
-                    # get identity group
-                    pname = pinfo["cmdline"][-1]
+            if "-drop" in pinfo["cmdline"]:
 
-                    cnt, pp, mp = ppool.get(pname, [0, 0, 0])
+                # get identity group
+                pname = pinfo["cmdline"][pinfo["cmdline"].index("-drop") + 1]
 
-                    ppool[pname] = [cnt + 1, pp + pinfo["cpu_percent"],
-                                    mp + pinfo["memory_percent"]]
+                cnt, pp, mp = ppool.get(pname, [0, 0, 0])
+
+                ppool[pname] = [cnt + 1, pp + pinfo["cpu_percent"],
+                                mp + pinfo["memory_percent"]]
 
         except Exception as e:
             log("error: {}".format(e))
