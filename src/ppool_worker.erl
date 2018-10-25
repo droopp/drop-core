@@ -253,19 +253,22 @@ handle_call({stop_all_workers, C}, _From,
 
     ?Debug4({stop_all_workers, Cr, C}),
 
-    case Cr - C > 0 of
+    case C > 0 andalso Cr - C > 0 of
          true -> 
-           ?Debug4({stop, split(maps:keys(Pids), Cr-C)}),
 
-           lists:foreach(fun(Pid) -> 
-                                 gen_server:cast(Pid, {msg, no, stop}) end, 
-                                 split(maps:keys(Pids), Cr-C)
-                         );
+           Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
+            ?Debug4({stop, split(maps:keys(Free), Cr-C)}),
+
+             lists:foreach(fun(Pid) ->
+                                   gen_server:cast(Pid, {msg, no, stop}) end, 
+                                   split(maps:keys(Free), Cr-C)
+                           );
          false ->
-            ok
+             ok
      end, 
 
 	   {reply, ok, State};
+
 
 
 handle_call({register, Pid}, _From, #state{workers_pids=Pids}=State) ->
