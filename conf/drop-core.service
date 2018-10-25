@@ -1,0 +1,21 @@
+
+[Unit]
+Description=Core DROP App /Distribued Reliable Operation Platform
+
+[Service]
+Type=simple
+
+User=root
+Group=root
+
+ExecStart=/opt/drop-core/scripts/drop-core start
+ExecStop=
+KillMode=process
+KillSignal=SIGKILL
+
+RestartSec=10
+StartLimitBurst=5
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

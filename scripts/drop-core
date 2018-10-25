@@ -1,0 +1,260 @@
+#!/bin/sh
+
+
+banner() {
+
+    echo "                    ___           ___           ___   "
+    echo "     _____         /\  \         /\  \         /\  \  "
+    echo "    /::\  \       /::\  \       /::\  \       /::\  \ "
+    echo "   /:/\:\  \     /:/\:\__\     /:/\:\  \     /:/\:\__\ "
+    echo "  /:/  \:\__\   /:/ /:/  /    /:/  \:\  \   /:/ /:/  / "
+    echo " /:/__/ \:|__| /:/_/:/__/___ /:/__/ \:\__\ /:/_/:/  /  "
+    echo " \:\  \ /:/  / \:\/:::::/  / \:\  \ /:/  / \:\/:/  /   "
+    echo "  \:\  /:/  /   \::/~~/~~~~   \:\  /:/  /   \::/__/    "
+    echo "   \:\/:/  /     \:\~~\        \:\/:/  /     \:\  \    "
+    echo "    \::/  /       \:\__\        \::/  /       \:\__\   "
+    echo "     \/__/         \/__/         \/__/         \/__/   "
+    echo " "
+    echo " "
+    echo " "
+    echo "     Distribued Reliable Operations Platform           "
+    echo " "
+    echo " "
+    echo " "
+
+}
+
+
+ERL_HOME=/opt/erlang/20/bin/
+DROP_HOME="$(dirname $(realpath $0))/../"
+
+NODE_NAME="$(cat /sys/class/dmi/id/product_uuid)"
+
+# VIP
+DROP_VIP="127.0.0.1"
+
+DROP_VIP_IFACE="$(/usr/sbin/route |grep default |head -1|awk '{print $8}')"
+HOSTNAME="$(/usr/sbin/ifconfig $DROP_VIP_IFACE | grep 'inet '| awk '{ print $2}')"
+HOSTNAME0=`env hostname -f`
+
+IS_SHORT="$(echo $HOSTNAME|grep '\.'|wc -l)"
+SNAME="-sname "
+
+
+if [ "$IS_SHORT" -eq "1" ]; then
+    SNAME="-name"
+fi
+
+
+if [ "x" != "x$ERL_HOME" ] 
+then
+    export PATH=${ERL_HOME}:$PATH
+fi
+
+if [ "x" = "x$NODE_NAME" ] 
+then
+    DROP_NAME=drop@${HOSTNAME}
+else
+    DROP_NAME=${NODE_NAME}@${HOSTNAME}
+fi
+
+
+DROP_COOKIE=mesh1
+DROP_LOG_DIR=/var/lib/drop/logs
+DROP_VAR_DIR=/var/lib/drop
+ERL_MAX_ETS_TABLES=50000
+DROP_IO_THREAD_POOL_SIZE=128
+ERL_MAX_PROC=1048576
+ERL_MAX_PORTS=65536
+ERL_MAX_ATOMS=5000000
+ERL_DBUFFER_SIZE=32000
+DROP_LOGGER_MF_BYTES=10485760
+DROP_LOGGER_MF_FILES=10
+HEART_BEAT_TIMEOUT=30
+HEART_COMMAND="${DROP_HOME}/scripts/drop-core"
+
+DROP_EBIN_ROOT="${DROP_HOME}/ebin ${DROP_HOME}/apps/*/ebin ${DROP_HOME}/deps/*/ebin "
+ERL_CRASH_DUMP="${DROP_LOG_DIR}/erl_crash.dump"
+NOTIFY_SOCKET=
+
+
+setenv() {
+    echo "setenv.."
+
+    # selinux off
+    setenforce 0
+
+    # system
+
+    ulimit -n 1000000
+
+    sysctl -w vm.swappiness=60 # 10
+    sysctl -w vm.vfs_cache_pressure=400  # 10000
+    sysctl -w vm.dirty_ratio=40 # 20
+    sysctl -w vm.dirty_background_ratio=1
+    sysctl -w vm.dirty_writeback_centisecs=500
+    sysctl -w vm.dirty_expire_centisecs=30000
+    sysctl -w kernel.panic=10
+    sysctl -w fs.file-max=1000000
+    sysctl -w net.core.netdev_max_backlog=10000
+    sysctl -w net.core.somaxconn=65535
+    sysctl -w net.ipv4.tcp_syncookies=1
+    sysctl -w net.ipv4.tcp_max_syn_backlog=262144
+    sysctl -w net.ipv4.tcp_max_tw_buckets=720000
+    sysctl -w net.ipv4.tcp_tw_recycle=1
+    sysctl -w net.ipv4.tcp_timestamps=1
+    sysctl -w net.ipv4.tcp_tw_reuse=1
+    sysctl -w net.ipv4.tcp_fin_timeout=30
+    sysctl -w net.ipv4.tcp_keepalive_time=1800
+    sysctl -w net.ipv4.tcp_keepalive_probes=7
+    sysctl -w net.ipv4.tcp_keepalive_intvl=30
+    sysctl -w net.core.wmem_max=33554432
+    sysctl -w net.core.rmem_max=33554432
+    sysctl -w net.core.rmem_default=8388608
+    sysctl -w net.core.wmem_default=4194394
+    sysctl -w net.ipv4.tcp_rmem="4096 8388608 16777216"
+    sysctl -w net.ipv4.tcp_wmem="4096 4194394 16777216"
+
+    # sysctl -p
+}
+
+
+
+help() {
+
+    banner
+
+    echo " start - start drop-core"
+    echo " stop  - stop drop-core"
+    echo " remsh - remote shell"
+    echo ""
+
+
+}
+
+
+remsh() {
+
+    exec erl \
+        -setcookie ${DROP_COOKIE} \
+        -remsh ${DROP_NAME} \
+        -hidden \
+        -connect_all false \
+        ${SNAME} remsh
+}
+
+
+
+stop() {
+
+    exec erl \
+        -noshell \
+        -hidden \
+        -connect_all false \
+        ${SNAME} temp_control \
+        -setcookie ${DROP_COOKIE} \
+        -eval "rpc:call('${DROP_NAME}', init, stop, [])" -s init stop
+
+}
+
+stop_s() {
+
+    # stop all depend services if beam not started
+    count=$(ps -aux|grep beam.smp|grep drop-core|grep -v grep| wc -l)
+
+    if [ "$count" -eq "0" ]; then
+        # core is down
+
+        /usr/sbin/ifconfig $DROP_VIP_IFACE:0 down
+
+
+    else
+
+        # check network change
+        cip=$(ps -aux|grep beam|grep drop-core |cut -d'@' -f 2|awk '{print $1}')
+        if [ "$cip" != "$HOSTNAME" ]; then
+            systemctl restart drop-core
+        fi
+
+    fi
+
+}
+
+
+start() {
+
+    banner
+    # setenv
+
+    if [ ! -d ${DROP_LOG_DIR} ]; then
+            mkdir -p "${DROP_LOG_DIR}"
+    fi
+    if [ ! -d ${DROP_VAR_DIR} ]; then
+            mkdir -p "${DROP_VAR_DIR}"
+    fi
+
+    # add plugin dir
+    if [ ! -d ${DROP_VAR_DIR}/plugins/ ]; then
+            mkdir -p "${DROP_VAR_DIR}/plugins/"
+    fi
+
+    # chmod -R a+rw ${DROP_VAR_DIR}
+    cd ${DROP_HOME}
+
+    # check .hosts
+    echo "'${HOSTNAME}'." > .hosts.erlang
+    echo "" >> .hosts.erlang
+
+    # start
+    exec erl \
+        ${SNAME} ${DROP_NAME} \
+        -setcookie ${DROP_COOKIE} \
+        +K true \
+        +A ${DROP_IO_THREAD_POOL_SIZE} \
+        +W w \
+        +P ${ERL_MAX_PROC} \
+        +Q ${ERL_MAX_PORTS} \
+        +t ${ERL_MAX_ATOMS} \
+        +e ${ERL_MAX_ETS_TABLES} \
+        +stbt s \
+        +scl true \
+        +zdbbl ${ERL_DBUFFER_SIZE} \
+        -boot start_sasl \
+        -sasl errlog_type error \
+        -sasl sasl_error_logger false \
+        -sasl error_logger_mf_dir \"${DROP_LOG_DIR}\" \
+        -sasl error_logger_mf_maxbytes ${DROP_LOGGER_MF_BYTES} \
+        -sasl error_logger_mf_maxfiles ${DROP_LOGGER_MF_FILES} \
+        -kernel start_pg2 true \
+        -pa ${DROP_EBIN_ROOT} \
+        -env NODE_NAME ${NODE_NAME} \
+        -env HOSTNAME0 ${HOSTNAME0} \
+        -env DROP_HOME ${DROP_HOME} \
+        -env DROP_VAR_DIR ${DROP_VAR_DIR} \
+        -env DROP_LOG_DIR ${DROP_LOG_DIR} \
+        -env DROP_VIP ${DROP_VIP} \
+        -env DROP_VIP_IFACE ${DROP_VIP_IFACE} \
+        -noinput \
+        -s main
+
+        # -noinput
+        # -heart \
+        # -env HEART_BEAT_TIMEOUT ${HEART_BEAT_TIMEOUT} \
+        # -env HEART_COMMAND ${HEART_COMMAND} \
+ 
+}
+
+if [ $# -eq 0 ]
+  then
+      help
+  else
+      if [ $1 = "start" ]; then
+          start
+      elif [ $1 = "stop" ]; then
+          stop
+      elif [ $1 = "stop_s" ]; then
+          stop_s
+      elif [ $1 = "remsh" ]; then
+          remsh
+      fi
+fi

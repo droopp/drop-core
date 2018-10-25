@@ -1,0 +1,131 @@
+#!/opt/drop-pyenv/bin/python
+
+#
+# System init info
+#
+# params
+# $1 - node_name
+# $2 - time interval in sec
+#
+
+import sys
+import time
+import psutil as ps
+import os
+
+
+# API
+
+
+def read():
+    line = sys.stdin.readline()
+    return line.strip()
+
+
+def log(m):
+    sys.stderr.write("{}: {}\n".format(time.time(), m))
+    sys.stderr.flush()
+
+
+def send(m):
+    sys.stdout.write("{}\n".format(m))
+    sys.stdout.flush()
+
+# Process - actor
+#  read - recieve message from world
+#  send - send message to world
+#  log  -  logging anything
+
+
+def main(node, t):
+    """
+        t - time interval in secs
+    """
+
+    msg = read()
+    log("get message: " + msg)
+
+    while 1:
+
+        log("tick..")
+
+        # nodes
+        resp = get_node_stat(node)
+        send(resp)
+
+        # ppols
+        for i in get_ppool_stat(node):
+            send(i)
+
+        time.sleep(int(t))
+
+
+def get_ppool_stat(node):
+    """
+    base ppools stat
+    """
+
+    ppool = {}
+    stats = []
+    for proc in ps.process_iter():
+        try:
+
+            pinfo = proc.as_dict(attrs=["pid", "name", "cmdline",
+                                        "cpu_percent", "memory_percent"])
+
+            if len(pinfo["cmdline"]) > 2:
+                if pinfo["cmdline"][-2] == "-plugin":
+                    # get identity group
+                    pname = pinfo["cmdline"][-1]
+
+                    cnt, pp, mp = ppool.get(pname, [0, 0, 0])
+
+                    ppool[pname] = [cnt + 1, pp + pinfo["cpu_percent"],
+                                    mp + pinfo["memory_percent"]]
+
+        except Exception as e:
+            log("error: {}".format(e))
+
+    for k, v in ppool.items():
+        ppool_stat = '{{"tag":"ppool_stat", "node": "{}", "name": "{}",\
+                       "count":{}, "cpu_percent": {}, "ram_percent": {}\
+                        }}'.format(node,
+                                   k,
+                                   v[0],
+                                   v[1],
+                                   v[2]
+                                   )
+
+        stats.append(ppool_stat)
+
+    return stats
+
+
+def get_node_stat(node):
+
+    """
+    base node stats
+    """
+
+    mem = map(int, os.popen('free -t -m').readlines()[1].split()[1:])  # ps.virtual_memory()
+    disk = ps.disk_usage("/")
+    cpu_p = ps.cpu_percent()
+
+    node_stat = '{{"tag":"node_stat", "node": "{}", "cpu_count": {},"cpu_percent": {},\
+                   "ram_count": {},"ram_percent": {},"disk_count": {},\
+                   "disk_percent": {}, "net_count": {}\
+                   }}'.format(node,
+                              ps.cpu_count(),
+                              cpu_p,
+                              mem[0],
+                              (1 - mem[5]*1.0/mem[0])*100,
+                              disk[0]/(1024*1024),
+                              disk[3],
+                              len(ps.net_connections(kind="all"))
+                              )
+
+    return node_stat
+
+
+if __name__ == "__main__":
+    main(sys.argv[1], sys.argv[2])
