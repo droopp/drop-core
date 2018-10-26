@@ -25,7 +25,7 @@ banner() {
 }
 
 
-ERL_HOME=/opt/erlang/20/bin/
+ERL_HOME=/opt/erlang/bin/
 DROP_HOME="$(dirname $(realpath $0))/../"
 
 NODE_NAME="$(cat /sys/class/dmi/id/product_uuid)"

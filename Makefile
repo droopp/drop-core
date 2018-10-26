@@ -11,4 +11,4 @@ ERLC_OPTS= -Ddebug0
 include erlang.mk
 
 run:
-	sudo ./scripts/drop-core start
+	./scripts/drop-core start

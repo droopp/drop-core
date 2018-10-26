@@ -225,7 +225,7 @@ node_mcast_stream(F) ->
 open(Addr,Port) ->
    {ok,S} = gen_udp:open(Port,[{reuseaddr,true},
                                {ip,Addr},
-                               {multicast_ttl,4},
+                               {multicast_ttl, ?MCATS_TTL},
                                {multicast_loop,false}, binary]),
 
    inet:setopts(S,[{add_membership,{Addr,{0,0,0,0}}}]),
