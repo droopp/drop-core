@@ -68,6 +68,11 @@ def get_ppool_stat(node):
     ppool = {}
     stats = []
     for proc in ps.process_iter():
+
+        # get child of docker
+        # if proc.children():
+        #     proc = proc.children()[0]
+
         try:
 
             pinfo = proc.as_dict(attrs=["pid", "name", "cmdline",

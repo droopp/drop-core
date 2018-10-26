@@ -5,7 +5,7 @@
 -export([start_link/0,
          call/4,
          cmd/2,
-         cmd2/2,
+         cmd2/3,
          api/1,
          node_info_internal_stream/1,
          try_start/1,
@@ -194,14 +194,21 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 
-cmd2(Cmd, Log) ->
+cmd2(Img, Cmd, Log) ->
 
-   R = lists:concat([os:getenv("DROP_VAR_DIR"),"/plugins/", Cmd,
-                     " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log]),
+    case Img  of
+        <<"plugin">> ->
+            R = lists:concat([os:getenv("DROP_VAR_DIR"),"/plugins/", Cmd,
+                            " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log]);
+         _ ->
+            R = lists:concat(["docker run --rm --log-driver none -i -u drop -w /home/drop/"
+                              " -v ", os:getenv("DROP_VAR_DIR"), ":/tmp ", Img, " ", Cmd,
+                              " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log])
+    end,
 
-    ?Debug2({cmd, R}),
+     ?Debug2({cmd, R}),
 
-   R.
+      R.
 
 
 cmd(Cmd, Log) ->
@@ -428,22 +435,25 @@ call_api(Msg) ->
                              );
 
 
+
                start_worker ->
 
-                   [Cmd, Log, Tm] = A,
+                   [Img, Cmd, Log, Tm] = A,
 
                    _Res = call(erlang:binary_to_atom(Tp, latin1),
-                            fun(N, {C, L, T}) -> ppool_worker:start_worker(N, 
-                                             {cmd2(C, L), T})
+                            fun(N, {I, C, L, T}) -> ppool_worker:start_worker(N, 
+                                             {cmd2(I, C, L), T})
  
                             end,
                             erlang:binary_to_atom(Name, latin1),
                             {
+                             erlang:binary_to_list(Img),
                              erlang:binary_to_list(Cmd),
                              erlang:binary_to_list(Log),
                              erlang:binary_to_integer(Tm)
                             }
                              );
+
 
                stop_worker ->
 
@@ -473,24 +483,28 @@ call_api(Msg) ->
                              );
 
 
+
+
                start_all_workers ->
 
 
-                   [Cmd, Log, Tm] = A,
+                   [Img, Cmd, Log, Tm] = A,
 
                    _Res = call(erlang:binary_to_atom(Tp, latin1),
-                            fun(N, {C, L, T}) -> 
+                            fun(N, {I, C, L, T}) -> 
                                     ppool_worker:start_all_workers(N, 
-                                                                   {cmd2(C, L), 
+                                                                   {cmd2(I, C, L), 
                                                                     T})
                             end,
                             erlang:binary_to_atom(Name, latin1),
                             {
+                             erlang:binary_to_list(Img),
                              erlang:binary_to_list(Cmd),
                              erlang:binary_to_list(Log),
                              erlang:binary_to_integer(Tm)
                             }
                              );
+
 
                start_sys_workers ->
 
