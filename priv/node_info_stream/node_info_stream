@@ -12,7 +12,7 @@ import sys
 import time
 import psutil as ps
 import os
-
+import docker
 
 # API
 
@@ -67,11 +67,8 @@ def get_ppool_stat(node):
 
     ppool = {}
     stats = []
-    for proc in ps.process_iter():
 
-        # get child of docker
-        # if proc.children():
-        #     proc = proc.children()[0]
+    for proc in ps.process_iter():
 
         try:
 
@@ -82,6 +79,30 @@ def get_ppool_stat(node):
 
                 # get identity group
                 pname = pinfo["cmdline"][pinfo["cmdline"].index("-drop") + 1]
+
+                cnt, pp, mp = ppool.get(pname, [0, 0, 0])
+
+                ppool[pname] = [cnt + 1, pp + pinfo["cpu_percent"],
+                                mp + pinfo["memory_percent"]]
+
+        except Exception as e:
+            log("error: {}".format(e))
+
+    # docker stats
+
+    if os.environ.get("IS_DOCKER") == "1":
+
+        try:
+
+            c = docker.from_env()
+            for k in c.containers.list():
+                proc = ps.Process(k.attrs["State"]["Pid"])
+
+                pinfo = proc.as_dict(attrs=["pid", "name", "cmdline",
+                                            "cpu_percent", "memory_percent"])
+
+                # get identity group
+                pname = k.attrs["Config"]["Image"].split(":")[0]
 
                 cnt, pp, mp = ppool.get(pname, [0, 0, 0])
 

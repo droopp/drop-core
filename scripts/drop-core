@@ -25,6 +25,11 @@ banner() {
 }
 
 
+export IS_MCAST="0"
+export DROP_STRATEGY="elastic"
+export IS_DOCKER="1"
+
+
 ERL_HOME=/opt/erlang/bin/
 DROP_HOME="$(dirname $(realpath $0))/../"
 
@@ -36,9 +41,6 @@ DROP_VIP="127.0.0.1"
 DROP_VIP_IFACE="$(/usr/sbin/route |grep default |head -1|awk '{print $8}')"
 HOSTNAME="$(/usr/sbin/ifconfig $DROP_VIP_IFACE | grep 'inet '| awk '{ print $2}')"
 HOSTNAME0=`env hostname -f`
-
-export IS_MCAST="0"
-export DROP_STRATEGY="elastic"
 
 IS_SHORT="$(echo $HOSTNAME|grep '\.'|wc -l)"
 SNAME="-sname "
