@@ -176,13 +176,34 @@ stop_s() {
     else
 
         # check network change
+
         cip=$(ps -aux|grep beam|grep drop-core |cut -d'@' -f 2|awk '{print $1}')
         if [ "$cip" != "$HOSTNAME" ]; then
             systemctl restart drop-core
         fi
 
-    fi
+        # check sys functions is started
 
+        declare -a arr=("node_collector"                                    
+                        "node_info_stream"
+                        "flower"
+                        "flower_sc_stream")
+                        
+        for i in "${arr[@]}"
+        do
+            echo $i
+
+         cip=$(ps -aux|grep "\-drop $i$"|grep -v grep|wc -l)
+
+         echo $cip
+         if [ "$cip" == "0" ]; then
+            systemctl restart drop-core
+         fi
+            
+        done      
+
+    fi
+                   
 }
 
 
