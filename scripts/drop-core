@@ -191,11 +191,8 @@ stop_s() {
                         
         for i in "${arr[@]}"
         do
-            echo $i
-
          cip=$(ps -aux|grep "\-drop $i$"|grep -v grep|wc -l)
 
-         echo $cip
          if [ "$cip" == "0" ]; then
             systemctl restart drop-core
          fi
