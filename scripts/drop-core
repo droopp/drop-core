@@ -37,6 +37,8 @@ DROP_VIP_IFACE="$(/usr/sbin/route |grep default |head -1|awk '{print $8}')"
 HOSTNAME="$(/usr/sbin/ifconfig $DROP_VIP_IFACE | grep 'inet '| awk '{ print $2}')"
 HOSTNAME0=`env hostname -f`
 
+export IS_MCAST="0"
+
 IS_SHORT="$(echo $HOSTNAME|grep '\.'|wc -l)"
 SNAME="-sname "
 
@@ -202,8 +204,8 @@ start() {
     cd ${DROP_HOME}
 
     # check .hosts
-    echo "'${HOSTNAME}'." > .hosts.erlang
-    echo "" >> .hosts.erlang
+    # echo "'${HOSTNAME}'." > .hosts.erlang
+    # echo "" >> .hosts.erlang
 
     # start
     exec erl \

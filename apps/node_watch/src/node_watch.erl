@@ -206,7 +206,15 @@ node_mcast0(F) ->
   %% catch multicast msg
   %%
   
-  S=open(?ADDR, ?PORT),
+  ?Debug2({node_mcast0_IS_MCAST, os:getenv("IS_MCAST", "0")}), 
+
+  case os:getenv("IS_MCAST", "0") of
+      "1" -> 
+          S=open(?ADDR, ?PORT);
+       _ ->
+            S=open2(?ADDR, ?PORT)
+  end,
+
    gen_udp:controlling_process(S, self()),
     receiver(F).
    
@@ -220,6 +228,11 @@ node_mcast_stream(F) ->
             node_mcast0(F)
     end.
 
+
+
+open2(_Addr,Port) ->
+   {ok,S} = gen_udp:open(Port,[{reuseaddr,true}, binary]),
+   S.
 
 
 open(Addr,Port) ->
@@ -240,6 +253,39 @@ open(Addr,Port) ->
 %% mcast API worker 
 %%  
 %%
+
+
+
+node_mcast_api02(Msg) ->
+
+  %% send multicast msg
+  %%
+  
+    {ok, S} = gen_udp:open(?PORT2,
+                           [binary,
+                            {active, true},
+                            {reuseaddr, true}
+                           ]),
+
+
+    %% get cluster hosts
+    R = net_adm:host_file(),
+
+     case R of
+        {error,enoent} ->
+            error_logger:error_msg("MCAST DISABLED and NO HOSTS!");
+        ListH ->
+
+            lists:foreach(
+                fun(X) ->
+                        {ok, Addr} = inet:parse_address(erlang:atom_to_list(X)),
+                            gen_udp:send(S, Addr, ?PORT, Msg)
+                end,
+            ListH)
+      end,
+
+        gen_udp:close(S).
+
 
 
 node_mcast_api0(Msg) ->
@@ -264,7 +310,15 @@ node_mcast_api(F) ->
         Msg -> 
 
           ?Debug2({node_mcast_api0, F, body_to_msg(Msg)}), 
-            node_mcast_api0(body_to_msg(Msg)),
+
+            case os:getenv("IS_MCAST", "0") of
+                "1" -> 
+                    node_mcast_api0(body_to_msg(Msg));
+                _ ->
+                    node_mcast_api02(body_to_msg(Msg))
+            end,
+
+            
               F!{self(), {data, [<<"ok">>]}},
 
                node_mcast_api(F)
