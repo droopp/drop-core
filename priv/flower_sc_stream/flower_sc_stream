@@ -11,6 +11,7 @@
 # $5 - vip iface
 
 import sys
+import os
 import time
 import json
 import sqlite3
@@ -77,7 +78,7 @@ def main(p, node, t, vip, vip_iface):
             m_node = None
         else:
             m_node = m_nodes[0]
-            # m_cnt = m_cnt/len(m_nodes)
+            m_cnt = m_cnt/len(m_nodes)
 
         if m_node != node:
             log("i'm not main node {} ..set rserv".format(m_node))
@@ -112,6 +113,13 @@ def main(p, node, t, vip, vip_iface):
                 make_vip(m_nodes, True, _vip, vip_iface)
                 _is_vip_set = 1
 
+            if m_cnt < 9:
+                log("main node {} but not enough metrics {}".format(m_node, m_cnt))
+                send("ok")
+
+                time.sleep(int(t))
+                continue
+
             log("main node {} ..set admin".format(m_node))
 
         if time.time() - tb < int(t) * 5:
@@ -132,7 +140,13 @@ def main(p, node, t, vip, vip_iface):
 
         log("start init flows..")
 
-        start_init_flows(p, pstats, m_nodes)
+        _strgy = os.environ.get("DROP_STRATEGY", "simple")
+        log("get strategy..{}".format(_strgy))
+
+        _mod = __import__("strategy." + _strgy)
+        _strgy = getattr(_mod, _strgy)
+
+        _strgy.do(p, pstats, m_nodes, get_flows(p))
 
         #  get services
         #  start/stop services
@@ -299,58 +313,6 @@ def start_init_services(p, pstats, m_nodes):
     con.close()
 
     return
-
-
-def start_init_flows(p, pstats, m_nodes):
-
-    for f in get_flows(p):
-        f_name, f_active, f_priority, f_ppools = f.get("name"),\
-            f.get("active"), f.get("priority"),\
-            [[y.get("cmd").split("::")[3] for y in x.get("cook")
-              if y.get("cmd").split("::")[2] == "start_pool"]
-             for x in f.get("scenes")
-             if x["name"] == f.get("start_scene")][0]
-
-        log("read flow {} {} {} {}".format(f_name, f_active, f_priority, f_ppools))
-
-        # if flow not active stop on all nodes
-        if f_active == 0:
-            log("stop on all nodes..{}".format(f_name))
-            send("system::all::{}::stop".format(f_name))
-
-        elif f_active == 1:
-            # check already started
-            first_start = True
-
-            # need first start for priority 0
-            if f_priority == 0:
-                log("flow {} first start {}".format(f_name, first_start))
-                send("system::all::{}::start".format(f_name))
-
-            elif f_priority == 1:
-                log("start on main node {} {}".format(m_nodes[0], f_name))
-                # force clear
-                send("system::{}::{}::start".format(m_nodes[0], f_name))
-                [send("system::{}::{}::stop".format(x, f_name)) for x in m_nodes[1:]]
-
-            for k, v in pstats.iteritems():
-
-                if k not in m_nodes:
-                    continue
-
-                if set(f_ppools).issubset(set([x[1] for x in v])):
-
-                    log("on node {} flow {} is started".format(k, f_name))
-                    # send("system::{}::{}::start".format(k, f_name))
-
-                    first_start = False
-
-                elif set([x[1] for x in v]).issubset(set(f_ppools)):
-                    log("on node {} flow {} is NOT started".format(k, f_name))
-
-                    # force clear
-                    # send("system::{}::{}::stop".format(k, f_name))
-                    first_start = False or first_start
 
 
 def get_active_nodes(p):

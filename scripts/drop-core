@@ -38,6 +38,7 @@ HOSTNAME="$(/usr/sbin/ifconfig $DROP_VIP_IFACE | grep 'inet '| awk '{ print $2}'
 HOSTNAME0=`env hostname -f`
 
 export IS_MCAST="0"
+export DROP_STRATEGY="elastic"
 
 IS_SHORT="$(echo $HOSTNAME|grep '\.'|wc -l)"
 SNAME="-sname "
