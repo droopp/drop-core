@@ -28,10 +28,12 @@ banner() {
 export IS_MCAST="0"
 export DROP_STRATEGY="elastic"
 export IS_DOCKER="1"
+export IS_DROP_TLS="0"
 
 
 ERL_HOME=/opt/erlang/bin/
 DROP_HOME="$(dirname $(realpath $0))/../"
+DROP_SSL_OPT="server_certfile /ets/ssl/drop/drop-dist.pem server_keyfile /etc/ssl/drop/drop-dist.key"
 
 NODE_NAME="$(cat /sys/class/dmi/id/product_uuid)"
 
@@ -209,6 +211,13 @@ start() {
     banner
     # setenv
 
+
+    if [ ! -d /etc/ssl/drop ]; then
+            mkdir -p /etc/ssl/drop
+            chmod 700 /etc/ssl/drop
+    fi
+
+
     if [ ! -d ${DROP_LOG_DIR} ]; then
             mkdir -p "${DROP_LOG_DIR}"
     fi
@@ -264,6 +273,8 @@ start() {
         # -heart \
         # -env HEART_BEAT_TIMEOUT ${HEART_BEAT_TIMEOUT} \
         # -env HEART_COMMAND ${HEART_COMMAND} \
+        # -proto_dist inet_tls \
+        # -ssl_dist_opt ${DROP_SSL_OPT} \
  
 }
 
