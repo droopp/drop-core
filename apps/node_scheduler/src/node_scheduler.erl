@@ -196,14 +196,15 @@ code_change(_OldVsn, State, _Extra) ->
 
 cmd2(Img, Cmd, Log) ->
 
-    case Img  of
-        <<"plugin">> ->
-            R = lists:concat([os:getenv("DROP_VAR_DIR"),"/plugins/", Cmd,
-                            " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log]);
-         _ ->
+    case string:find(Img, "plugin") of
+       nomatch ->
             R = lists:concat(["docker run --rm --log-driver none -i -u drop -w /home/drop/"
                               " -v ", os:getenv("DROP_VAR_DIR"), ":/tmp ", Img, " ", Cmd,
-                              " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log])
+                              " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log]);
+        _ ->
+            R = lists:concat([os:getenv("DROP_VAR_DIR"),"/plugins/", Cmd,
+                            " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log])
+ 
     end,
 
      ?Debug2({cmd, R}),
