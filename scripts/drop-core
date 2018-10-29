@@ -25,7 +25,7 @@ banner() {
 }
 
 
-export IS_MCAST="0"
+export IS_MCAST="1"
 export DROP_STRATEGY="elastic"
 export IS_DOCKER="1"
 export IS_DROP_TLS="0"
