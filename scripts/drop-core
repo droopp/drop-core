@@ -209,7 +209,7 @@ stop_s() {
 start() {
 
     banner
-    # setenv
+    setenv
 
 
     if [ ! -d /etc/ssl/drop ]; then
