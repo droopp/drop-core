@@ -19,4 +19,4 @@ rm -f /usr/bin/drop-core
 ln -s /opt/drop-core/scripts/drop-core /usr/bin/drop-core
 
 ## start service
-systemctl restart drop-core
+# systemctl restart drop-core

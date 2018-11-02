@@ -135,8 +135,7 @@ stop_s() {
     if [ "$count" -eq "0" ]; then
         # core is down
 
-        /usr/sbin/ifconfig $DROP_VIP_IFACE:0 down
-
+        sudo /usr/sbin/ifconfig $DROP_VIP_IFACE:0 down
 
     else
 
@@ -144,7 +143,7 @@ stop_s() {
 
         cip=$(ps -aux|grep beam|grep drop-core |cut -d'@' -f 2|awk '{print $1}')
         if [ "$cip" != "$HOSTNAME" ]; then
-            systemctl restart drop-core
+            sudo systemctl restart drop-core
         fi
 
         # check sys functions is started
@@ -159,7 +158,7 @@ stop_s() {
          cip=$(ps -aux|grep "\-drop $i$"|grep -v grep|wc -l)
 
          if [ "$cip" == "0" ]; then
-            systemctl restart drop-core
+            sudo systemctl restart drop-core
          fi
             
         done      

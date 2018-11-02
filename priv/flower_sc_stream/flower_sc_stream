@@ -42,12 +42,12 @@ def send(m):
 
 
 _VIP_CMDS = [
-    "ifconfig {iface}:0 down",
-    "ifconfig {iface}:0 {vip} netmask 255.255.255.255 broadcast {vip}",
+    "sudo ifconfig {iface}:0 down",
+    "sudo ifconfig {iface}:0 {vip} netmask 255.255.255.255 broadcast {vip}",
 ]
 
 _RSERV_CMDS = [
-    "ifconfig {iface}:0 down",
+    "sudo ifconfig {iface}:0 down",
 ]
 
 
