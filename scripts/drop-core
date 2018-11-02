@@ -1,5 +1,6 @@
 #!/bin/sh
 
+set -e
 
 banner() {
 
@@ -35,7 +36,11 @@ ERL_HOME=/opt/erlang/bin/
 DROP_HOME="$(dirname $(realpath $0))/../"
 DROP_SSL_OPT="server_certfile /ets/ssl/drop/drop-dist.pem server_keyfile /etc/ssl/drop/drop-dist.key"
 
-NODE_NAME="$(cat /sys/class/dmi/id/product_uuid)"
+if [ ! -f /var/lib/drop/drop-id ]; then
+    uuidgen > /var/lib/drop/drop-id
+fi
+
+NODE_NAME="$(cat /var/lib/drop/drop-id)"
 
 # VIP
 DROP_VIP="127.0.0.1"
@@ -83,48 +88,6 @@ HEART_COMMAND="${DROP_HOME}/scripts/drop-core"
 DROP_EBIN_ROOT="${DROP_HOME}/ebin ${DROP_HOME}/apps/*/ebin ${DROP_HOME}/deps/*/ebin "
 ERL_CRASH_DUMP="${DROP_LOG_DIR}/erl_crash.dump"
 NOTIFY_SOCKET=
-
-
-setenv() {
-    echo "setenv.."
-
-    # selinux off
-    setenforce 0
-
-    # system
-
-    ulimit -n 1000000
-
-    sysctl -w vm.swappiness=60 # 10
-    sysctl -w vm.vfs_cache_pressure=400  # 10000
-    sysctl -w vm.dirty_ratio=40 # 20
-    sysctl -w vm.dirty_background_ratio=1
-    sysctl -w vm.dirty_writeback_centisecs=500
-    sysctl -w vm.dirty_expire_centisecs=30000
-    sysctl -w kernel.panic=10
-    sysctl -w fs.file-max=1000000
-    sysctl -w net.core.netdev_max_backlog=10000
-    sysctl -w net.core.somaxconn=65535
-    sysctl -w net.ipv4.tcp_syncookies=1
-    sysctl -w net.ipv4.tcp_max_syn_backlog=262144
-    sysctl -w net.ipv4.tcp_max_tw_buckets=720000
-    sysctl -w net.ipv4.tcp_tw_recycle=1
-    sysctl -w net.ipv4.tcp_timestamps=1
-    sysctl -w net.ipv4.tcp_tw_reuse=1
-    sysctl -w net.ipv4.tcp_fin_timeout=30
-    sysctl -w net.ipv4.tcp_keepalive_time=1800
-    sysctl -w net.ipv4.tcp_keepalive_probes=7
-    sysctl -w net.ipv4.tcp_keepalive_intvl=30
-    sysctl -w net.core.wmem_max=33554432
-    sysctl -w net.core.rmem_max=33554432
-    sysctl -w net.core.rmem_default=8388608
-    sysctl -w net.core.wmem_default=4194394
-    sysctl -w net.ipv4.tcp_rmem="4096 8388608 16777216"
-    sysctl -w net.ipv4.tcp_wmem="4096 4194394 16777216"
-
-    # sysctl -p
-}
-
 
 
 help() {
@@ -209,8 +172,6 @@ stop_s() {
 start() {
 
     banner
-    setenv
-
 
     if [ ! -d /etc/ssl/drop ]; then
             mkdir -p /etc/ssl/drop

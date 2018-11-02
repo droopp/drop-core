@@ -5,8 +5,8 @@ Description=Core DROP App /Distribued Reliable Operation Platform
 [Service]
 Type=simple
 
-User=root
-Group=root
+User=drop-core
+Group=drop-core
 
 ExecStart=/opt/drop-core/scripts/drop-core start
 ExecStop=

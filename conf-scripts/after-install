@@ -1,14 +1,18 @@
 #!/bin/sh
 
-if grep -q drop-rotate /var/spool/cron/root; then
+useradd drop-core
+
+if [ -f /var/spool/cron/drop-core ]; then
     echo "cron exist"
 else
-  echo "* * * * * /opt/drop-core/scripts/drop-rotate >/dev/null 2>&1" >> /var/spool/cron/root
+  echo "* * * * * /opt/drop-core/scripts/drop-rotate >/dev/null 2>&1" >> /var/spool/cron/drop-core
   echo "cron ok"
 fi
 
 cp /opt/drop-core/conf/drop-core.service /etc/systemd/system/ && systemctl daemon-reload
 systemctl enable drop-core
+
+chown -R drop-core:drop-core /opt/drop-core
 
 ## create symlink
 rm -f /usr/bin/drop-core
