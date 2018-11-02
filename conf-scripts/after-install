@@ -12,7 +12,10 @@ fi
 cp /opt/drop-core/conf/drop-core.service /etc/systemd/system/ && systemctl daemon-reload
 systemctl enable drop-core
 
+mkdir -p /var/lib/drop
+
 chown -R drop-core:drop-core /opt/drop-core
+chown -R drop-core:drop-core /var/lib/drop
 
 ## create symlink
 rm -f /usr/bin/drop-core

@@ -25,20 +25,52 @@ banner() {
 
 }
 
-
 export IS_MCAST="1"
 export DROP_STRATEGY="elastic"
 export IS_DOCKER="1"
 export IS_DROP_TLS="0"
 
-
 ERL_HOME=/opt/erlang/bin/
 DROP_HOME="$(dirname $(realpath $0))/../"
 DROP_SSL_OPT="server_certfile /ets/ssl/drop/drop-dist.pem server_keyfile /etc/ssl/drop/drop-dist.key"
+DROP_LOG_DIR=/var/lib/drop/logs
+DROP_VAR_DIR=/var/lib/drop
+DROP_COOKIE=mesh1
+ERL_MAX_ETS_TABLES=50000
+DROP_IO_THREAD_POOL_SIZE=128
+ERL_MAX_PROC=1048576
+ERL_MAX_PORTS=65536
+ERL_MAX_ATOMS=5000000
+ERL_DBUFFER_SIZE=32000
+DROP_LOGGER_MF_BYTES=10485760
+DROP_LOGGER_MF_FILES=10
+HEART_BEAT_TIMEOUT=30
+HEART_COMMAND="${DROP_HOME}/scripts/drop-core"
+DROP_EBIN_ROOT="${DROP_HOME}/ebin ${DROP_HOME}/apps/*/ebin ${DROP_HOME}/deps/*/ebin "
+ERL_CRASH_DUMP="${DROP_LOG_DIR}/erl_crash.dump"
+NOTIFY_SOCKET=
+
+if [ ! -d /etc/ssl/drop ]; then
+        mkdir -p /etc/ssl/drop
+        chmod 700 /etc/ssl/drop
+fi
+
+if [ ! -d ${DROP_LOG_DIR} ]; then
+        mkdir -p "${DROP_LOG_DIR}"
+fi
+if [ ! -d ${DROP_VAR_DIR} ]; then
+        mkdir -p "${DROP_VAR_DIR}"
+fi
+
+# add plugin dir
+if [ ! -d ${DROP_VAR_DIR}/plugins/ ]; then
+        mkdir -p "${DROP_VAR_DIR}/plugins/"
+fi
 
 if [ ! -f /var/lib/drop/drop-id ]; then
     uuidgen > /var/lib/drop/drop-id
 fi
+
 
 NODE_NAME="$(cat /var/lib/drop/drop-id)"
 
@@ -57,7 +89,6 @@ if [ "$IS_SHORT" -eq "1" ]; then
     SNAME="-name"
 fi
 
-
 if [ "x" != "x$ERL_HOME" ] 
 then
     export PATH=${ERL_HOME}:$PATH
@@ -71,25 +102,6 @@ else
 fi
 
 
-DROP_COOKIE=mesh1
-DROP_LOG_DIR=/var/lib/drop/logs
-DROP_VAR_DIR=/var/lib/drop
-ERL_MAX_ETS_TABLES=50000
-DROP_IO_THREAD_POOL_SIZE=128
-ERL_MAX_PROC=1048576
-ERL_MAX_PORTS=65536
-ERL_MAX_ATOMS=5000000
-ERL_DBUFFER_SIZE=32000
-DROP_LOGGER_MF_BYTES=10485760
-DROP_LOGGER_MF_FILES=10
-HEART_BEAT_TIMEOUT=30
-HEART_COMMAND="${DROP_HOME}/scripts/drop-core"
-
-DROP_EBIN_ROOT="${DROP_HOME}/ebin ${DROP_HOME}/apps/*/ebin ${DROP_HOME}/deps/*/ebin "
-ERL_CRASH_DUMP="${DROP_LOG_DIR}/erl_crash.dump"
-NOTIFY_SOCKET=
-
-
 help() {
 
     banner
@@ -99,9 +111,7 @@ help() {
     echo " remsh - remote shell"
     echo ""
 
-
 }
-
 
 remsh() {
 
@@ -112,7 +122,6 @@ remsh() {
         -connect_all false \
         ${SNAME} remsh
 }
-
 
 
 stop() {
@@ -172,30 +181,7 @@ start() {
 
     banner
 
-    if [ ! -d /etc/ssl/drop ]; then
-            mkdir -p /etc/ssl/drop
-            chmod 700 /etc/ssl/drop
-    fi
-
-
-    if [ ! -d ${DROP_LOG_DIR} ]; then
-            mkdir -p "${DROP_LOG_DIR}"
-    fi
-    if [ ! -d ${DROP_VAR_DIR} ]; then
-            mkdir -p "${DROP_VAR_DIR}"
-    fi
-
-    # add plugin dir
-    if [ ! -d ${DROP_VAR_DIR}/plugins/ ]; then
-            mkdir -p "${DROP_VAR_DIR}/plugins/"
-    fi
-
-    # chmod -R a+rw ${DROP_VAR_DIR}
     cd ${DROP_HOME}
-
-    # check .hosts
-    # echo "'${HOSTNAME}'." > .hosts.erlang
-    # echo "" >> .hosts.erlang
 
     # start
     exec erl \
