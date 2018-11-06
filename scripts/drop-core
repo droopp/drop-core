@@ -67,6 +67,11 @@ if [ ! -f ${DROP_VAR_DIR}/drop-id ]; then
     uuidgen > ${DROP_VAR_DIR}/drop-id
 fi
 
+if [ -f ${DROP_HOME}/.hosts.erlang ]; then
+    export IS_MCAST="0"
+fi
+
+
 
 NODE_NAME="$(cat /var/lib/drop/drop-id)"
 
