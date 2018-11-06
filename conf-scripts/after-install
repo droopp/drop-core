@@ -13,9 +13,11 @@ cp /opt/drop-core/conf/drop-core.service /etc/systemd/system/ && systemctl daemo
 systemctl enable drop-core
 
 mkdir -p /var/lib/drop
+mkdir -p /etc/ssl/drop
 
 chown -R drop-core:drop-core /opt/drop-core
 chown -R drop-core:drop-core /var/lib/drop
+chown -R drop-core:drop-core /var/ssl/drop
 
 ## create symlink
 rm -f /usr/bin/drop-core

@@ -50,10 +50,6 @@ DROP_EBIN_ROOT="${DROP_HOME}/ebin ${DROP_HOME}/apps/*/ebin ${DROP_HOME}/deps/*/e
 ERL_CRASH_DUMP="${DROP_LOG_DIR}/erl_crash.dump"
 NOTIFY_SOCKET=
 
-if [ ! -d /etc/ssl/drop ]; then
-        mkdir -p /etc/ssl/drop
-        chmod 700 /etc/ssl/drop
-fi
 
 if [ ! -d ${DROP_LOG_DIR} ]; then
         mkdir -p "${DROP_LOG_DIR}"
@@ -67,8 +63,8 @@ if [ ! -d ${DROP_VAR_DIR}/plugins/ ]; then
         mkdir -p "${DROP_VAR_DIR}/plugins/"
 fi
 
-if [ ! -f /var/lib/drop/drop-id ]; then
-    uuidgen > /var/lib/drop/drop-id
+if [ ! -f ${DROP_VAR_DIR}/drop-id ]; then
+    uuidgen > ${DROP_VAR_DIR}/drop-id
 fi
 
 
