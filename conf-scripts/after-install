@@ -17,7 +17,7 @@ mkdir -p /etc/ssl/drop
 
 chown -R drop-core:drop-core /opt/drop-core
 chown -R drop-core:drop-core /var/lib/drop
-chown -R drop-core:drop-core /var/ssl/drop
+chown -R drop-core:drop-core /etc/ssl/drop
 
 ## create symlink
 rm -f /usr/bin/drop-core
