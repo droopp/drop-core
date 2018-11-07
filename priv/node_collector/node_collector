@@ -121,7 +121,7 @@ def insert_node_world(args):
               ---
 
               UPDATE node_world
-               SET node = '{node}', hostname = '{detail}'
+               SET node = '{node}', hostname = '{detail}' active = 1
               WHERE uuid = '{uuid}';
 
            """.format(uuid=args[2].split("@")[0],
@@ -145,7 +145,7 @@ def update_node_world(args):
         date = None
 
     return """UPDATE node_world
-               SET group0='{group0}', detail='{detail}', date = CURRENT_TIMESTAMP
+               SET group0='{group0}', detail='{detail}', date = CURRENT_TIMESTAMP, active = 1
               WHERE uuid = '{uuid}'
                 AND (julianday(ifnull(date, CURRENT_TIMESTAMP)) - 2440587.5) * 86400.0  <= {date};
               """.format(uuid=args[2].split("@")[0], node=args[2], group0=args[3], detail=data,
@@ -207,7 +207,7 @@ def clear_last_rows(cur, t):
     cur.execute("DELETE FROM node_stat WHERE date < DATETIME('NOW', '-{} minutes');".format(t))
     cur.execute("DELETE FROM ppool_stat WHERE date < DATETIME('NOW', '-{} minutes');".format(t))
     cur.execute("DELETE FROM ppool_list WHERE date < DATETIME('NOW', '-{} minutes');".format(t))
-    cur.execute("UPDATE node_world SET active=0 WHERE date < DATETIME('NOW', '-{} minutes');".format(1))
+    cur.execute("UPDATE node_world SET active = 0 WHERE date < DATETIME('NOW', '-{} minutes');".format(1))
     cur.execute("DELETE FROM node_list WHERE date < DATETIME('NOW', '-{} minutes');".format(t*3))
 
 
