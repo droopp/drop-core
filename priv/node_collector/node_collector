@@ -126,7 +126,7 @@ def insert_node_world(args):
 
            """.format(uuid=args[2].split("@")[0],
                       node=args[2],
-                      active=0,
+                      active=1,
                       group0=None,
                       detail=args[3])
 
@@ -207,8 +207,8 @@ def clear_last_rows(cur, t):
     cur.execute("DELETE FROM node_stat WHERE date < DATETIME('NOW', '-{} minutes');".format(t))
     cur.execute("DELETE FROM ppool_stat WHERE date < DATETIME('NOW', '-{} minutes');".format(t))
     cur.execute("DELETE FROM ppool_list WHERE date < DATETIME('NOW', '-{} minutes');".format(t))
-    cur.execute("""DELETE FROM node_list WHERE date NOT IN
-                 ( SELECT date FROM node_list ORDER BY date DESC LIMIT {});""".format(t*3))
+    cur.execute("UPDATE node_world SET active=0 WHERE date < DATETIME('NOW', '-{} minutes');".format(1))
+    cur.execute("DELETE FROM node_list WHERE date < DATETIME('NOW', '-{} minutes');".format(t*3))
 
 
 def connect(p):
