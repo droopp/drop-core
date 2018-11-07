@@ -121,7 +121,7 @@ def insert_node_world(args):
               ---
 
               UPDATE node_world
-               SET node = '{node}', hostname = '{detail}' active = 1
+               SET node = '{node}', hostname = '{detail}', active = 1
               WHERE uuid = '{uuid}';
 
            """.format(uuid=args[2].split("@")[0],
