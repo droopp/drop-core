@@ -113,7 +113,7 @@ def main(p, node, t, vip, vip_iface):
                 make_vip(m_nodes, True, _vip, vip_iface)
                 _is_vip_set = 1
 
-            if m_cnt < 9:
+            if m_cnt < 6:
                 log("main node {} but not enough metrics {}".format(m_node, m_cnt))
                 send("ok")
 
