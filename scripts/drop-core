@@ -67,8 +67,9 @@ if [ ! -f ${DROP_VAR_DIR}/drop-id ]; then
     uuidgen > ${DROP_VAR_DIR}/drop-id
 fi
 
-if [ -f ${DROP_HOME}/.hosts.erlang ]; then
+if [ -f ${DROP_VAR_DIR}/drop-hosts ]; then
     export IS_MCAST="0"
+    cp ${DROP_VAR_DIR}/drop-hosts ${DROP_HOME}/.hosts.erlang
 fi
 
 
