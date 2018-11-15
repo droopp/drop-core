@@ -13,6 +13,7 @@ import time
 import psutil as ps
 import os
 import docker
+import json
 
 # API
 
@@ -112,14 +113,18 @@ def get_ppool_stat(node):
         except Exception as e:
             log("error: {}".format(e))
 
+    _trace = '{{"tag":"ppool_{}", "values":{}, "labels":{} }}'
+
     for k, v in ppool.items():
         ppool_stat = '{{"tag":"ppool_stat", "node": "{}", "name": "{}",\
-                       "count":{}, "cpu_percent": {}, "ram_percent": {}\
+                        "count":{}, "cpu_percent": {}, "ram_percent": {}, "_trace": {}\
                         }}'.format(node,
                                    k,
                                    v[0],
                                    v[1],
-                                   v[2]
+                                   v[2],
+                                   _trace.format(k + node, [v[1], v[2], (v[1] + v[2])/2],
+                                                 json.dumps(["cpu", "ram", "mid"]))
                                    )
 
         stats.append(ppool_stat)
@@ -132,6 +137,7 @@ def get_node_stat(node):
     """
     base node stats
     """
+    _trace = '{{"tag":"node_{}", "values":{}, "labels":{} }}'
 
     mem = map(int, os.popen('free -t -m').readlines()[1].split()[1:])  # ps.virtual_memory()
     disk = ps.disk_usage("/")
@@ -139,7 +145,7 @@ def get_node_stat(node):
 
     node_stat = '{{"tag":"node_stat", "node": "{}", "cpu_count": {},"cpu_percent": {},\
                    "ram_count": {},"ram_percent": {},"disk_count": {},\
-                   "disk_percent": {}, "net_count": {}\
+                   "disk_percent": {}, "net_count": {}, "_trace": {}\
                    }}'.format(node,
                               ps.cpu_count(),
                               cpu_p,
@@ -147,7 +153,9 @@ def get_node_stat(node):
                               (1 - mem[5]*1.0/mem[0])*100,
                               disk[0]/(1024*1024),
                               disk[3],
-                              len(ps.net_connections(kind="all"))
+                              len(ps.net_connections(kind="all")),
+                              _trace.format(node, [cpu_p, (1 - mem[5]*1.0/mem[0])*100, disk[3]],
+                                            json.dumps(["cpu", "ram", "disk"]))
                               )
 
     return node_stat

@@ -198,8 +198,8 @@ cmd2(Img, Cmd, Log) ->
 
     case string:find(Img, "plugin") of
        nomatch ->
-            R = lists:concat(["docker run --rm --log-driver none -i -u drop -w /home/drop/"
-                              " -v ", os:getenv("DROP_VAR_DIR"), ":/tmp ", Img, " ", Cmd,
+            R = lists:concat(["docker run --rm --log-driver none -i -u drop -w /home/drop/",
+                              " ",  Img, " ", Cmd,
                               " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log]);
         _ ->
             R = lists:concat([os:getenv("DROP_VAR_DIR"),"/plugins/", Cmd,
