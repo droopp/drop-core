@@ -30,12 +30,16 @@ def do(p, pstats, m_nodes, pflows):
 def start_init_flows(p, pstats, m_nodes, pflows):
 
     for f in pflows:
-        f_name, f_active, f_priority, f_ppools = f.get("name"),\
-            f.get("active"), f.get("priority"),\
-            [[y.get("cmd").split("::")[3] for y in x.get("cook")
-              if y.get("cmd").split("::")[2] == "start_pool"]
-             for x in f.get("scenes")
-             if x["name"] == f.get("start_scene")][0]
+        try:
+            f_name, f_active, f_priority, f_ppools = f.get("name"),\
+                f.get("active"), f.get("priority"),\
+                [[y.get("cmd").split("::")[3] for y in x.get("cook")
+                if y.get("cmd").split("::")[2] == "start_pool"]
+                for x in f.get("scenes")
+                if x["name"] == f.get("start_scene")][0]
+        except Exception as e:
+            log("bad flow structure {}: {}".format(f, e))
+            continue
 
         log("read flow {} {} {} {}".format(f_name, f_active, f_priority, f_ppools))
 
