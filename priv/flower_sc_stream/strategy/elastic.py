@@ -130,8 +130,8 @@ def start_init_flows(p, pstats, m_nodes, pflows):
                 v = get_load_nodes(p)
                 for n, l in v.iteritems():
                     log("load nodes {} {} {}".format(n, l, _ram_need))
-                    if l[1] > _ram_need and l[0] < 85:
-                        send("system::{}::{}::start".format(n, f_name))
+                    # if l[1] > _ram_need and l[0] < 85:
+                    send("system::{}::{}::start".format(n, f_name))
 
 
 def get_load_nodes(p):
@@ -225,6 +225,7 @@ def check_add_resourse(p, name, cnt, node, pflows, is_distrib=False):
 
                     if l[1] > _ram_need and l[0] < 85:
                         send("system::{}::change_limit::{}::{}".format(node, name, cnt))
+                        send("system::{}::{}::start".format(node, name))
                         break
 
                     else:
@@ -364,10 +365,14 @@ def get_stats_decrease(p):
     data = {}
     for row in cur:
 
-        if row[2] is None or row[2] == 0 or row[3] is None:
+        if row[2] is None or row[2] < 2:
             continue
 
-        workers = math.ceil(row[3]) - math.ceil(row[2])
+        _oks = 0
+        if row[3] is not None:
+            _oks = row[3]
+
+        workers = math.ceil(_oks) - math.ceil(row[2])
 
         log("ppool stat {} need {}".format(row, workers))
 

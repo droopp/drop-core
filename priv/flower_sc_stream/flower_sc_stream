@@ -89,7 +89,7 @@ def main(p, node, t, vip, vip_iface):
                 make_vip(m_nodes, False, _vip, vip_iface)
                 _is_vip_set = 2
 
-            if time.time() - tb < int(t) * 6:
+            if time.time() - tb < int(t) * 5:
                 send("ok")
 
                 time.sleep(int(t))
@@ -122,7 +122,7 @@ def main(p, node, t, vip, vip_iface):
 
             log("main node {} ..set admin".format(m_node))
 
-        if time.time() - tb < int(t) * 6:
+        if time.time() - tb < int(t) * 5:
             send("ok")
 
             time.sleep(int(t))
@@ -321,10 +321,10 @@ def get_active_nodes(p):
 
     cur.execute("""select s.node, s.date, count(1)
                          from node_stat s left join (select node, active, MAX(date) from node_list
-                                                      where date > DATETIME('NOW', '-1 minutes')
+                                                      where date > DATETIME('NOW', '-15 seconds')
                                                     ) l
                           on s.node = l.node
-                         where s.date > DATETIME('NOW', '-1 minutes')
+                         where s.date > DATETIME('NOW', '-15 seconds')
                             and ifnull(l.active, 1) = 1
                          group by s.node
                          order by s.node desc
@@ -359,7 +359,7 @@ def get_stats(p):
              where l.node = s.node
                  and l.name = s.name
                  and s.node = ns.node
-                 and l.date > DATETIME('NOW', '-1 minutes')
+                 and l.date > DATETIME('NOW', '-15 seconds')
              group by s.node, s.name
            """)
 
