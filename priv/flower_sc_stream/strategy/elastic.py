@@ -170,19 +170,26 @@ def check_add_resourse(p, name, cnt, node, pflows, is_distrib=False):
     log("....check_add_resourse {} {} {} {}".format(name, cnt, node, is_distrib))
 
     for f in pflows:
-        f_name, f_ppools, f_count, f_ram = f.get("name"),\
-            [[y.get("cmd").split("::")[3] for y in x.get("cook")
-              if y.get("cmd").split("::")[2] == "start_pool"]
-             for x in f.get("scenes")
-             if x["name"] == f.get("start_scene")][0],\
-            [[int(y.get("cmd").split("::")[4]) for y in x.get("cook")
-              if y.get("cmd").split("::")[2] == "start_pool"]
-             for x in f.get("scenes")
-             if x["name"] == f.get("start_scene")][0],\
-            [[int(y.get("cmd").split("::")[4].split(" ")[1][:-1]) for y in x.get("cook")
-              if y.get("cmd").split("::")[2] == "start_all_workers"]
-             for x in f.get("scenes")
-             if x["name"] == f.get("start_scene")][0]
+
+        try:
+
+            f_name, f_ppools, f_count, f_ram = f.get("name"),\
+                [[y.get("cmd").split("::")[3] for y in x.get("cook")
+                if y.get("cmd").split("::")[2] == "start_pool"]
+                for x in f.get("scenes")
+                if x["name"] == f.get("start_scene")][0],\
+                [[int(y.get("cmd").split("::")[4]) for y in x.get("cook")
+                if y.get("cmd").split("::")[2] == "start_pool"]
+                for x in f.get("scenes")
+                if x["name"] == f.get("start_scene")][0],\
+                [[int(y.get("cmd").split("::")[4].split(" ")[1][:-1]) for y in x.get("cook")
+                if y.get("cmd").split("::")[2] == "start_all_workers"]
+                for x in f.get("scenes")
+                if x["name"] == f.get("start_scene")][0]
+
+        except Exception as e:
+            log("bad flow structure {}: {}".format(f, e))
+            continue
 
         log("....find in conf {} {} {}".format(name, f_name, f_ppools))
 
