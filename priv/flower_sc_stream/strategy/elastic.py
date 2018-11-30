@@ -85,7 +85,7 @@ def start_init_flows(p, pstats, m_nodes, pflows):
                 if set(f_ppools).issubset(set([x[1] for x in v])):
 
                     log("on node {} flow {} is started".format(k, f_name))
-                    send("system::{}::{}::start".format(k, f_name))
+                    # send("system::{}::{}::start".format(k, f_name))
 
                     first_start = False
 
