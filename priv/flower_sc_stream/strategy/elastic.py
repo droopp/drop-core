@@ -200,8 +200,8 @@ def check_add_resourse(p, name, cnt, node, pflows, is_distrib=False):
 
                 if is_distrib:
 
-                    if n == node:
-                        continue
+                    # if n == node:
+                    #     continue
 
                     _ram_need = sum(map(mul, f_ram, f_count))
 
@@ -250,8 +250,8 @@ def decrease_ppools(p, pstats, m_nodes, pflows):
                 i[2] = 3
                 log("..too big : {} set {}".format(i[0], i[2]))
 
-            if int(i[1] + i[2]) > 15:
-                log("..max 15 proc limit : {}".format(k))
+            if int(i[1] + i[2]) > 5:
+                log("..max 5 proc limit : {}".format(k))
                 check_add_resourse(p, i[0], int(i[1] + i[2]), k, pflows, True)
 
                 send("ok")
@@ -365,10 +365,10 @@ def get_stats_decrease(p):
     data = {}
     for row in cur:
 
-        if row[2] is None or row[2] < 2:
+        if row[2] is None:
             continue
 
-        _oks = 0
+        _oks = 1
         if row[3] is not None:
             _oks = row[3]
 
@@ -422,12 +422,13 @@ def get_min_stats(p, names):
     cur.execute("""
 
         select node, count(name), SUM(pcpu), SUM(pram), ncpu, nram, cpu_count, ram_count, ram_percent,
-                rnd
+                rnd, okl
                 from (
         select s.node, s.name
                ,AVG(s.cpu_percent) pcpu, AVG(s.ram_percent)*ns.ram_count/100 pram
                ,AVG(ns.cpu_percent) ncpu, (100 - AVG(ns.ram_percent))*ns.ram_count/100 nram
                ,ns.cpu_count, ns.ram_count, ns.ram_percent, ROUND(ns.cpu_count/10) as rnd
+               ,MAX(l.ok) okl
 
              from ppool_list l, ppool_stat s,
                   node_stat ns
@@ -446,6 +447,9 @@ def get_min_stats(p, names):
     data = [None, None, []]
     for row in cur:
         if row[1] != len(names):
+            continue
+
+        if row[10] is not None and row[10] > 0:
             continue
 
         if data[0] is None:
