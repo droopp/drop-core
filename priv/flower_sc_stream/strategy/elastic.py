@@ -141,10 +141,10 @@ def get_load_nodes(p):
     cur.execute(""" select * from(
                      select s.node, MAX(s.cpu_percent) cpu, (1 - MAX(s.ram_percent)/100) * s.ram_count ram
                          from node_stat s left join (select node, active, MAX(date) from node_list
-                                                      where date > DATETIME('NOW', '-1 minutes')
+                                                      where date > DATETIME('NOW', '-15 seconds')
                                                     ) l
                           on s.node = l.node
-                         where s.date > DATETIME('NOW', '-1 minutes')
+                         where s.date > DATETIME('NOW', '-15 seconds')
                             and ifnull(l.active, 1) = 1
                          group by s.node
                    ) t
@@ -175,17 +175,17 @@ def check_add_resourse(p, name, cnt, node, pflows, is_distrib=False):
 
             f_name, f_ppools, f_count, f_ram = f.get("name"),\
                 [[y.get("cmd").split("::")[3] for y in x.get("cook")
-                if y.get("cmd").split("::")[2] == "start_pool"]
-                for x in f.get("scenes")
-                if x["name"] == f.get("start_scene")][0],\
+                  if y.get("cmd").split("::")[2] == "start_pool"]
+                 for x in f.get("scenes")
+                 if x["name"] == f.get("start_scene")][0],\
                 [[int(y.get("cmd").split("::")[4]) for y in x.get("cook")
-                if y.get("cmd").split("::")[2] == "start_pool"]
-                for x in f.get("scenes")
-                if x["name"] == f.get("start_scene")][0],\
+                  if y.get("cmd").split("::")[2] == "start_pool"]
+                 for x in f.get("scenes")
+                 if x["name"] == f.get("start_scene")][0],\
                 [[int(y.get("cmd").split("::")[4].split(" ")[1][:-1]) for y in x.get("cook")
-                if y.get("cmd").split("::")[2] == "start_all_workers"]
-                for x in f.get("scenes")
-                if x["name"] == f.get("start_scene")][0]
+                  if y.get("cmd").split("::")[2] == "start_all_workers"]
+                 for x in f.get("scenes")
+                 if x["name"] == f.get("start_scene")][0]
 
         except Exception as e:
             log("bad flow structure {}: {}".format(f, e))
@@ -293,9 +293,9 @@ def start_rebalance_flow(p, m_nodes, pflows):
             log("flow {} has 1 priority not rebalance ".format(f_name))
             continue
 
-        _from, _to = get_min_stats(p, f_ppools)
+        _from, _to, _other = get_min_stats(p, f_ppools)
 
-        log("...from {}\n to {}".format(_from, _to))
+        log("...from {}\n to {}\n other {}".format(_from, _to, _other))
 
         if _from is not None and _to is not None:
             log(".....check criteria...")
@@ -314,6 +314,10 @@ def start_rebalance_flow(p, m_nodes, pflows):
 
             log(".....stop on flow {} no node {}".format(f_name, _from[0]))
             send("system::{}::{}::stop".format(_from[0], f_name))
+
+            for x in _other:
+                log(".....stop on flow {} no node {}".format(f_name, x[0]))
+                send("system::{}::{}::stop".format(x[0], f_name))
 
             break
 
@@ -344,12 +348,12 @@ def get_stats_decrease(p):
 
                     from ppool_list l, (select s.node, s.name, MIN(s.count) count
                                               from ppool_stat s
-                                               where s.date > DATETIME('NOW', '-1 minutes')
+                                               where s.date > DATETIME('NOW', '-15 seconds')
                                               group by s.node, s.name) s
 
                      where l.node = s.node
                          and l.name = s.name
-                         and l.date > DATETIME('NOW', '-1 minutes')
+                         and l.date > DATETIME('NOW', '-15 seconds')
                      group by s.node, s.name
 
                ) t
@@ -425,16 +429,16 @@ def get_min_stats(p, names):
              where l.node = s.node
                  and l.name = s.name
                  and s.node = ns.node
-                 and l.date > DATETIME('NOW', '-1 minutes')
+                 and l.date > DATETIME('NOW', '-15 seconds')
                  and l.name in ({})
              group by s.node, s.name
-                HAVING MAX(s.count) < 10
+                HAVING MAX(s.count) = 1
         ) group by node
         order by rnd desc, nram asc
 
                """.format(','.join(['?']*len(names))), names)
 
-    data = [None, None]
+    data = [None, None, []]
     for row in cur:
         if row[1] != len(names):
             continue
@@ -442,8 +446,11 @@ def get_min_stats(p, names):
         if data[0] is None:
             data[0] = row
         else:
-            data[1] = row
+            if data[1] is None:
+                data[1] = row
+            else:
+                data[2].append(row)
 
     con.close()
 
-    return data[0], data[1]
+    return data[0], data[1], data[2]

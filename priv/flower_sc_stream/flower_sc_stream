@@ -89,7 +89,7 @@ def main(p, node, t, vip, vip_iface):
                 make_vip(m_nodes, False, _vip, vip_iface)
                 _is_vip_set = 2
 
-            if time.time() - tb < int(t) * 5:
+            if time.time() - tb < int(t) * 6:
                 send("ok")
 
                 time.sleep(int(t))
@@ -113,7 +113,7 @@ def main(p, node, t, vip, vip_iface):
                 make_vip(m_nodes, True, _vip, vip_iface)
                 _is_vip_set = 1
 
-            if m_cnt < 6:
+            if m_cnt < 3:
                 log("main node {} but not enough metrics {}".format(m_node, m_cnt))
                 send("ok")
 
@@ -122,7 +122,7 @@ def main(p, node, t, vip, vip_iface):
 
             log("main node {} ..set admin".format(m_node))
 
-        if time.time() - tb < int(t) * 5:
+        if time.time() - tb < int(t) * 6:
             send("ok")
 
             time.sleep(int(t))
