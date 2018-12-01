@@ -365,7 +365,7 @@ def get_stats_decrease(p):
     data = {}
     for row in cur:
 
-        if row[2] is None:
+        if row[2] is None or row[4] == -0.1:
             continue
 
         _oks = 1
@@ -438,7 +438,7 @@ def get_min_stats(p, names):
                  and l.date > DATETIME('NOW', '-15 seconds')
                  and l.name in ({})
              group by s.node, s.name
-                HAVING MAX(s.count) = 1
+              --  HAVING MAX(s.count) = 1
         ) group by node
         order by rnd desc, nram asc
 
@@ -446,6 +446,7 @@ def get_min_stats(p, names):
 
     data = [None, None, []]
     for row in cur:
+
         if row[1] != len(names):
             continue
 
