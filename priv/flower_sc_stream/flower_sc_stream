@@ -113,7 +113,7 @@ def main(p, node, t, vip, vip_iface):
                 make_vip(m_nodes, True, _vip, vip_iface)
                 _is_vip_set = 1
 
-            if m_cnt < 3:
+            if m_cnt < 1:
                 log("main node {} but not enough metrics {}".format(m_node, m_cnt))
                 send("ok")
 
@@ -319,7 +319,7 @@ def get_active_nodes(p):
     con = connect(p)
     cur = con.cursor()
 
-    cur.execute("""select s.node, s.date, count(1)
+    cur.execute("""select s.node, count(1)
                          from node_stat s left join (select node, active, MAX(date) from node_list
                                                       where date > DATETIME('NOW', '-15 seconds')
                                                     ) l
@@ -335,7 +335,7 @@ def get_active_nodes(p):
     cnt = 0
     for row in cur:
         data.append(row[0])
-        cnt += row[2]
+        cnt += row[1]
 
     con.close()
 
