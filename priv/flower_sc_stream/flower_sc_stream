@@ -17,6 +17,7 @@ import json
 import sqlite3
 import glob
 import subprocess as sp
+from vip import private, cloud
 
 # API
 
@@ -381,14 +382,13 @@ def make_vip(r_servers, is_vip, vip, vip_iface):
     r_servers - list of real servers
     """
 
-    _strgy = os.environ.get("DROP_VIP_STRGY", "private")
+    _strgy = os.environ.get("DROP_VIP_STRGY")
     log("get vip strategy..{}".format(_strgy))
 
-    _mod = __import__("vip." + _strgy)
-    _strgy = getattr(_mod, _strgy)
-
-    _VIP_CMDS = _strgy._VIP_CMDS
-    _RSERV_CMDS = _strgy._RSERV_CMDS
+    if _strgy is None:
+        _VIP_CMDS, _RSERV_CMDS = private.get()
+    else:
+        _VIP_CMDS, _RSERV_CMDS = cloud.get(_strgy)
 
     _vip = vip
     _iface = vip_iface

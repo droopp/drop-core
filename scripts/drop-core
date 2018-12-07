@@ -26,7 +26,14 @@ banner() {
 }
 
 export IS_MCAST="1"
-export DROP_STRATEGY="elastic"
+
+if [ "x" != "x$DROP_STRATEGY" ] 
+then
+    export DROP_STRATEGY="elastic"
+fi
+
+# DROP_VIP_STRGY
+
 export IS_DOCKER="1"
 export IS_DROP_TLS="0"
 
