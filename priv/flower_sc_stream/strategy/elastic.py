@@ -349,12 +349,12 @@ def get_stats_decrease(p):
 
                     from ppool_list l, (select s.node, s.name, MIN(s.count) count
                                               from ppool_stat s
-                                               where s.date > DATETIME('NOW', '-15 seconds')
+                                               where s.date > DATETIME('NOW', '-60 seconds')
                                               group by s.node, s.name) s
 
                      where l.node = s.node
                          and l.name = s.name
-                         and l.date > DATETIME('NOW', '-15 seconds')
+                         and l.date > DATETIME('NOW', '-60 seconds')
                      group by s.node, s.name
 
                ) t
@@ -365,7 +365,7 @@ def get_stats_decrease(p):
     data = {}
     for row in cur:
 
-        if row[2] is None or row[4] == -0.1:
+        if row[2] is None or row[4] < 0:
             continue
 
         _oks = 1
@@ -381,26 +381,26 @@ def get_stats_decrease(p):
         # if nomore > 70% when min ppool to 1
 
         log("check nomore rate {} / {} / {} > 20".format(row[5], row[4], row[2]))
-        if row[5] / (row[4] + 0.1) > 0.2:
+        if row[5] / (row[4] + 1.0) > 0.2:
             log("too many nomore {} add workers:{} ".format(row[1],
-                                                            math.ceil(1.0*row[2]*row[5]/(row[4]+0.1))
+                                                            math.ceil(1.0*row[2]*row[5]/(row[4]+1.0))
                                                             ))
 
-            d[2] = math.ceil(1.0*row[2]*row[5]/(row[4]+0.1))
+            d[2] = math.ceil(1.0*row[2]*row[5]/(row[4]+1.0))
 
         # if err > 70% when min ppool to 1
 
         log("check err rate {} / {} > 70".format(row[7], row[4]))
-        if row[7] / (row[4] + 0.1) > 0.7:
+        if row[7] / (row[4] + 1.0) > 0.7:
             log("too many err {}: {} > 70% ".format(row[1],
-                                                    row[7]/(row[4] + 0.1)))
+                                                    row[7]/(row[4] + 1.0)))
             d[2] = -1 * math.ceil(row[2]) + 1
 
         # no change
         if d[2] == 0:
             continue
 
-        if d[2] < 0 and row[5] / (row[4] + 0.1) > 0.05:  # stay while nomore exists
+        if d[2] < 0 and row[5] / (row[4] + 1.0) > 0.05:  # stay while nomore exists
             continue
 
         if data.get(row[0]) is None:
