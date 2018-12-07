@@ -383,10 +383,10 @@ def get_stats_decrease(p):
         log("check nomore rate {} / {} / {} > 20".format(row[5], row[4], row[2]))
         if row[5] / (row[4] + 0.1) > 0.2:
             log("too many nomore {} add workers:{} ".format(row[1],
-                                                            math.ceil(1.0*row[2]*row[5]/row[4]+0.1)
+                                                            math.ceil(1.0*row[2]*row[5]/(row[4]+0.1))
                                                             ))
 
-            d[2] = math.ceil(1.0*row[2]*row[5]/row[4]+0.1)
+            d[2] = math.ceil(1.0*row[2]*row[5]/(row[4]+0.1))
 
         # if err > 70% when min ppool to 1
 
