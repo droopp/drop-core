@@ -78,10 +78,9 @@ fi
 
 if [ -f ${DROP_VAR_DIR}/drop-hosts ]; then
     export IS_MCAST="0"
-    cp ${DROP_VAR_DIR}/drop-hosts ${DROP_HOME}/.hosts.erlang
+    cat ${DROP_VAR_DIR}/drop-hosts |awk '{printf "\47%s\47.\n", $1}END{print ""}' > ${DROP_HOME}/.hosts.erlang
+
 fi
-
-
 
 NODE_NAME="$(cat /var/lib/drop/drop-id)"
 
