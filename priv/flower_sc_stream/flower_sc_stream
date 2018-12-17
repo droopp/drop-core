@@ -399,29 +399,27 @@ def make_vip(r_servers, is_vip, vip, vip_iface):
 
     log("start make_vip: {} {}".format(is_vip, r_servers))
 
-    try:
-        if is_vip:
+    if is_vip:
 
-            for c in _VIP_CMDS:
-                _cmd = c.format(**{"iface": _iface,
-                                   "vip": _vip
-                                   })
+        for c in _VIP_CMDS:
+            _cmd = c.format(**{"iface": _iface,
+                               "vip": _vip
+                               })
 
-                log(_cmd)
-                log(sp.check_output("{};exit 0".format(_cmd),
-                                    shell=True, stderr=sp.STDOUT))
+            log(_cmd)
+            log(sp.check_output("{}".format(_cmd),
+                                shell=True, stderr=sp.STDOUT))
 
-        else:
-            # real server
-            for c in _RSERV_CMDS:
-                _cmd = c.format(**{"iface": _iface
-                                   })
-                log(_cmd)
-                log(sp.check_output("{};exit 0".format(_cmd),
-                                    shell=True, stderr=sp.STDOUT))
+    else:
+        # real server
+        for c in _RSERV_CMDS:
+            _cmd = c.format(**{"iface": _iface,
+                               "vip": _vip
+                               })
+            log(_cmd)
+            log(sp.check_output("{}".format(_cmd),
+                                shell=True, stderr=sp.STDOUT))
 
-    except Exception as e:
-        log(e)
 
     return
 
