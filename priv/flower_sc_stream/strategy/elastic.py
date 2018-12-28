@@ -63,7 +63,7 @@ def start_init_flows(p, pstats, m_nodes, pflows):
                 [[y.get("cmd") for y in x.get("cook")
                   if y.get("cmd").split("::")[2] == "subscribe"]
                  for x in f.get("scenes")
-                 if x["name"] == f.get("start_scene")]
+                 if x["name"] == f.get("start_scene")][0]
 
         except Exception as e:
             log("bad flow structure {}: {}".format(f, e))
