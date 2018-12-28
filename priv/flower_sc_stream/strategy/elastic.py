@@ -46,7 +46,7 @@ def start_init_flows(p, pstats, m_nodes, pflows):
     for f in pflows:
 
         try:
-            f_name, f_active, f_priority, f_ppools, f_count, f_ram = f.get("name"),\
+            f_name, f_active, f_priority, f_ppools, f_count, f_ram, f_subs = f.get("name"),\
                 f.get("active"), f.get("priority"),\
                 [[y.get("cmd").split("::")[3] for y in x.get("cook")
                   if y.get("cmd").split("::")[2] == "start_pool"]
@@ -59,7 +59,11 @@ def start_init_flows(p, pstats, m_nodes, pflows):
                 [[int(y.get("cmd").split("::")[4].split(" ")[1][:-1]) for y in x.get("cook")
                   if y.get("cmd").split("::")[2] == "start_all_workers"]
                  for x in f.get("scenes")
-                 if x["name"] == f.get("start_scene")][0]
+                 if x["name"] == f.get("start_scene")][0],\
+                [[y.get("cmd") for y in x.get("cook")
+                  if y.get("cmd").split("::")[2] == "subscribe"]
+                 for x in f.get("scenes")
+                 if x["name"] == f.get("start_scene")]
 
         except Exception as e:
             log("bad flow structure {}: {}".format(f, e))
@@ -86,6 +90,9 @@ def start_init_flows(p, pstats, m_nodes, pflows):
 
                     log("on node {} flow {} is started".format(k, f_name))
                     # send("system::{}::{}::start".format(k, f_name))
+                    # if subscribe try again
+                    for s in f_subs:
+                        send(s)
 
                     first_start = False
 
