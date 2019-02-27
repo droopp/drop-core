@@ -87,7 +87,13 @@ NODE_NAME="$(cat /var/lib/drop/drop-id)"
 # VIP
 DROP_VIP="127.0.0.1"
 
-DROP_VIP_IFACE="$(/usr/sbin/route |grep default |head -1|awk '{print $8}')"
+if [ "x" == "x$DROP_IFACE" ]
+then
+    DROP_VIP_IFACE="$(/usr/sbin/route |grep default |head -1|awk '{print $8}')"
+else
+    DROP_VIP_IFACE=$DROP_IFACE
+fi
+
 HOSTNAME="$(/usr/sbin/ifconfig $DROP_VIP_IFACE | grep 'inet '| awk '{ print $2}')"
 HOSTNAME0=`env hostname -f`
 
