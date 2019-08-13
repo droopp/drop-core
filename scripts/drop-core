@@ -166,7 +166,7 @@ stop_s() {
 
         # check network change
 
-        cip=$(ps -aux|grep beam|grep drop-core |cut -d'@' -f 2|awk '{print $1}')
+        cip=$(ps -aux|grep beam.smp|grep drop-core|grep -v grep|cut -d'@' -f 2|awk '{print $1}')
         if [ "$cip" != "$HOSTNAME" ]; then
             sudo systemctl restart drop-core
         fi
