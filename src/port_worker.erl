@@ -20,6 +20,7 @@
           ev,
           port,
           cmd,
+          async,
           timeout
 }).
 
@@ -176,7 +177,39 @@ handle_cast({stream_msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd, port=Port,
 
 
 handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
-                                                port=Port, timeout=T}=State) ->
+                                                port=Port, timeout=T}=State) 
+  when State#state.async =:= true ->
+
+    ?Debug4({msg_defer_async, From, Msg}),
+
+    Ref = new_ets_msg(N, Cmd, R, Msg),
+
+    {X1, X2, {X3, X4, X5}} = Ref,
+      Sref = erlang:list_to_binary([erlang:atom_to_list(X1), ":", 
+                                    erlang:pid_to_list(X2) , ":",
+                                    erlang:integer_to_binary(X3), ":",
+                                    erlang:integer_to_binary(X4), ":",
+                                    erlang:integer_to_binary(X5)
+                                   ]),
+
+
+       case process_async_ets_msg(N, E, Port, Ref, Msg, T, From, Sref) of
+           {error, timeout} -> 
+               From!{response, timeout},
+
+               {stop, port_timeout, State};
+
+           {DFrom, Res} -> 
+               DFrom!{response, Res},
+
+               {noreply, State}
+
+       end;
+
+
+handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
+                                                port=Port, timeout=T}=State) 
+  when State#state.async =:= false ->
 
     ?Debug4({msg_defer, From, Msg}),
 
@@ -194,6 +227,9 @@ handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
                {noreply, State}
 
        end;
+
+
+
 
 
 handle_cast(_Msg, State) ->
@@ -217,7 +253,15 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
             _ -> ppool_worker:stream_all_workers(M, <<"start\n">>)
         end,
 
-	  {noreply, State#state{port=Port}};
+        %% if async type
+        case string:find(Cmd, "_async") of
+            nomatch -> Async = false;
+            _ ->
+                Async = true
+
+        end,
+
+	  {noreply, State#state{port=Port, async=Async}};
 
 
 
@@ -287,6 +331,82 @@ new_ets_msg(N, Cmd, R, Msg) ->
 
 
      Ref.
+
+
+process_async_ets_msg(N, E, Port, Ref, Msg, T, PPid, SRef) ->
+
+   Msg2=erlang:list_to_binary([erlang:pid_to_list(PPid) , ":",
+                               SRef , "::",
+                               Msg]),
+
+
+     port_command(Port, Msg2),
+
+        case collect_response(Port, T) of
+            {ok, Response0} -> 
+
+
+              [SysI, Response] =  binary:split(Response0, <<"::">>),
+
+              [Spid, X1, X2, X3, X4, X5] = binary:split(SysI, <<":">>, [global]),
+
+               DRef = {
+                        erlang:list_to_atom(erlang:binary_to_list(X1)),
+                        erlang:list_to_pid(erlang:binary_to_list(X2)),
+
+                        { 
+                          erlang:binary_to_integer(X3),
+                          erlang:binary_to_integer(X4),
+                          erlang:binary_to_integer(X5)
+                        }
+                     
+                     },
+
+
+                true=ets:update_element(N, DRef, [
+                                               {#worker_stat.status, ok},
+                                               {#worker_stat.result, Response},
+                                               {#worker_stat.time_end, os:timestamp()}
+                                ]),
+
+                  ppool_worker:set_status_worker(N, self(), 1),
+                  gen_event:notify(E, {msg, {ok, DRef, Response}}),
+
+                {ok, {erlang:list_to_pid(erlang:binary_to_list(Spid)), Response}};
+
+            {error, Status, Err} ->
+                true=ets:update_element(N, Ref, [
+                                 {#worker_stat.status, error},
+                                 {#worker_stat.result, Status},
+                                 {#worker_stat.time_end, os:timestamp()}
+                                ]),
+
+                 Msg2=erlang:list_to_binary(["system::error::", 
+                      atom_to_list(node()),"::",
+                      atom_to_list(N)]),
+
+                  gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
+                   timer:sleep(?ERROR_TIMEOUT),
+
+                {error, Status, Err};
+
+            {error, timeout} ->
+                true=ets:update_element(N, Ref, [
+                                 {#worker_stat.status, timeout},
+                                 {#worker_stat.time_end, os:timestamp()}
+                                ]),
+
+                 Msg2=erlang:list_to_binary(["system::timeout::", 
+                      atom_to_list(node()),"::",
+                      atom_to_list(N)]),
+
+                  gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
+                    timer:sleep(?ERROR_TIMEOUT),
+
+                 {error, timeout}
+        end.
+
+
 
 
 process_ets_msg(N, E, Port, Ref, Msg, T) ->
