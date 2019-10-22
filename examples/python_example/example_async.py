@@ -77,7 +77,7 @@ def main(num):
         msg = input_queue.get()
 
         if not msg:
-            continue
+            break
 
         g = pool.spawn(process, (msg))
         g.link_exception(exception_callback)

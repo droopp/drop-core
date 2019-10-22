@@ -176,8 +176,7 @@ handle_cast({stream_msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd, port=Port,
 
 
 
-handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
-                                                port=Port, timeout=T}=State) 
+handle_cast({msg_defer, R, Msg, From}, #state{master=N, cmd=Cmd, port=Port}=State) 
   when State#state.async =:= true ->
 
     ?Debug4({msg_defer_async, From, Msg}),
@@ -192,19 +191,41 @@ handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
                                     erlang:integer_to_binary(X5)
                                    ]),
 
+     ?Debug4({msg_defer_async, Ref, Sref}),
 
-       case process_async_ets_msg(N, E, Port, Ref, Msg, T, From, Sref) of
+      Msg2=erlang:list_to_binary([erlang:pid_to_list(From) , ":",
+                                  Sref , "::",
+                                  Msg]),
+
+       %% port_command(Port, Msg2),
+
+        gen_server:cast(self(), {async_loop, From, Ref}),   
+
+          {noreply, State};
+
+
+handle_cast({async_loop, From, Ref}, #state{master=N, ev=E, port=Port, timeout=T}=State) ->
+
+      ?Debug4({async_loop, From, Ref}),
+
+      case process_async_ets_msg(N, E, Port, Ref, T) of
+     
+           ok ->
+              {noreply, State};
+     
            {error, timeout} -> 
                From!{response, timeout},
-
                {stop, port_timeout, State};
-
-           {DFrom, Res} -> 
-               DFrom!{response, Res},
-
+     
+           {ok, {DFrom, Res}} -> 
+              ?Debug4({msg_defer_async_response, DFrom, Res}),
+     
+               DFrom!{response, {ok, [Res]}},
+     
                {noreply, State}
-
+     
        end;
+
 
 
 handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
@@ -229,12 +250,8 @@ handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
        end;
 
 
-
-
-
 handle_cast(_Msg, State) ->
 	{noreply, State}.
-
 
 
 handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
@@ -245,7 +262,7 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
                               exit_status, binary]),
     
        ?Debug({registering, self()}),
-        ppool_worker:register_worker(M, self()),
+        ppool_worker:register_worker(M, {self(), Port}),
 
         %% if stream type do start
         case string:find(Cmd, "_stream") of
@@ -321,8 +338,8 @@ new_ets_msg(N, Cmd, R, Msg) ->
 
     Ref={node(), self(), os:timestamp()},
 
-     true=ets:insert(N, #worker_stat{ref=Ref, 
-                                     ref_from=R, pid=self(),cmd=Cmd,
+     true=ets:insert(N, #worker_stat{ref=R, 
+                                     ref_from=Ref, pid=self(),cmd=Cmd,
                                      req=Msg, status=running,
                                      time_start=os:timestamp()}
                         ),
@@ -333,18 +350,11 @@ new_ets_msg(N, Cmd, R, Msg) ->
      Ref.
 
 
-process_async_ets_msg(N, E, Port, Ref, Msg, T, PPid, SRef) ->
-
-   Msg2=erlang:list_to_binary([erlang:pid_to_list(PPid) , ":",
-                               SRef , "::",
-                               Msg]),
-
-
-     port_command(Port, Msg2),
+process_async_ets_msg(N, E, Port, Ref, T) ->
 
         case collect_response(Port, T) of
-            {ok, Response0} -> 
-
+   
+            {ok, [Response0]} -> 
 
               [SysI, Response] =  binary:split(Response0, <<"::">>),
 

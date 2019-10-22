@@ -61,6 +61,7 @@
           mfa, 
           name,
           workers_pids=maps:new(),
+          ports_pids=maps:new(),
           nomore=0
           
 }).
@@ -91,9 +92,15 @@ init([Name, Limit, MFA]) ->
 
 
 
-register_worker(Name, Pid) ->
-    gen_server:call(Name, {register, Pid}).
+register_worker(Name, Pid0) ->
 
+    case Pid0 of
+       {Pid, Port} ->
+          gen_server:call(Name, {register, {Pid, Port}});
+
+       Pid -> 
+          gen_server:call(Name, {register, {Pid, 0}})
+    end.
 
 
 %% start/stop worker
@@ -271,10 +278,9 @@ handle_call({stop_all_workers, C}, _From,
 
 
 
-handle_call({register, Pid}, _From, #state{workers_pids=Pids}=State) ->
+handle_call({register, {Pid, Port}}, _From, #state{workers_pids=Pids, ports_pids=Ports}=State) ->
     erlang:monitor(process, Pid),
-
-	    {reply, ok, State#state{workers_pids=maps:put(Pid, 0, Pids) } };
+        {reply, ok, State#state{workers_pids=maps:put(Pid, 0, Pids), ports_pids=maps:put(Pid, Port, Ports) } };
 
 
 
@@ -340,7 +346,7 @@ handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids}=State) ->
       end;
 
 
-handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids}=State) ->
+handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, ports_pids=Ports}=State) ->
     
     Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
@@ -365,7 +371,30 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
            end;
 
           [P|_] -> 
-             R=gen_server:cast(P, {msg_defer, no, Msg, From}),
+
+
+             ?Debug4({msg_defer_async, P, Ports, maps:get(P,Ports)}),
+             Ref={node(), self(), os:timestamp()},
+
+
+ {X1, X2, {X3, X4, X5}} = Ref,
+      Sref = erlang:list_to_binary([erlang:atom_to_list(X1), ":", 
+                                    erlang:pid_to_list(X2) , ":",
+                                    erlang:integer_to_binary(X3), ":",
+                                    erlang:integer_to_binary(X4), ":",
+                                    erlang:integer_to_binary(X5)
+                                   ]),
+
+     ?Debug4({msg_defer_async, Ref, Sref}),
+
+      Msg2=erlang:list_to_binary([erlang:pid_to_list(From) , ":",
+                                  Sref , "::",
+                                  Msg]),
+
+
+
+             R=gen_server:cast(P, {msg_defer, Ref, Msg, From}),
+              port_command(maps:get(P,Ports), Msg2),
  
               {reply, {ok, R}, State}
 
@@ -492,9 +521,9 @@ handle_cast(_Msg, State) ->
 
 
 handle_info({'DOWN', _MonitorRef, process, Pid, _Info}, 
-            #state{workers_pids=Pids}=State) ->
+            #state{workers_pids=Pids, ports_pids=Ports}=State) ->
 
-    	{noreply, State#state{workers_pids=maps:remove(Pid, Pids)}};
+    	{noreply, State#state{workers_pids=maps:remove(Pid, Pids), ports_pids=maps:remove(Pid, Ports)}};
 
 
 
