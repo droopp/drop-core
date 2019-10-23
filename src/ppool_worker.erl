@@ -62,7 +62,8 @@
           name,
           workers_pids=maps:new(),
           ports_pids=maps:new(),
-          nomore=0
+          nomore=0,
+          async
           
 }).
 
@@ -87,12 +88,17 @@ init([Name, Limit, MFA]) ->
      erlang:send_after(?INTERVAL, self(), clean_ets),
      erlang:send_after(?INTERVAL_NOMORE, self(), send_nomore),
 
+	Async = string:find(erlang:atom_to_list(Name), "_async") =/= nomatch,
 
-	{ok, #state{limit=Limit, mfa=MFA, name=Name}}.
+    	?Debug4({init, async, Async}),
+
+	{ok, #state{limit=Limit, mfa=MFA, name=Name, async=Async}}.
 
 
 
 register_worker(Name, Pid0) ->
+   
+   ?Debug4({register, async, Pid0}),
 
     case Pid0 of
        {Pid, Port} ->
@@ -346,7 +352,8 @@ handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids}=State) ->
       end;
 
 
-handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, ports_pids=Ports}=State) ->
+handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, async=Async, ports_pids=Ports}=State) 
+  when Async =:= true ->
     
     Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
@@ -355,7 +362,57 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
     case maps:keys(Free) of
           [] -> 
 
-            ppool_worker:add_nomore_info(Name),
+           ppool_worker:add_nomore_info(Name),
+
+           case maps:keys(Pids) of
+               [] ->
+                   {reply, {error, noproc}, State};
+
+               Pidss ->
+
+                  Index = rand:uniform(length(Pidss)),
+                   P0=lists:nth(Index, Pidss),
+
+		     ?Debug4({cast_worker_defer, P0, Ports, maps:get(P0,Ports)}),
+
+		     {Ref, Msg2} = new_ets_msg(From, Msg),
+
+		      ?Debug4({cast_worker_defer, Ref, Msg2}),
+
+	               R=gen_server:cast(P0, {msg_defer, Ref, Msg, From}),
+                       port_command(maps:get(P0, Ports), Msg2),
+ 
+                     {reply, {ok, R}, State}
+           end;
+
+          [P|_] -> 
+
+             ?Debug4({cast_worker_defer, P, Ports, maps:get(P,Ports)}),
+
+             {Ref, Msg2} = new_ets_msg(From, Msg),
+
+    		?Debug4({cast_worker_defer, Ref, Msg2}),
+
+              R=gen_server:cast(P, {msg_defer, Ref, Msg, From}),
+               port_command(maps:get(P, Ports), Msg2),
+ 
+              {reply, {ok, R}, State}
+
+      end;
+
+
+
+handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, async=Async}=State) 
+    when Async =:=false ->
+    
+    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
+
+    ?Debug4({cast_worker_defer, From, self(), Msg, Free}),
+
+    case maps:keys(Free) of
+          [] -> 
+
+           ppool_worker:add_nomore_info(Name),
 
            case maps:keys(Pids) of
                [] ->
@@ -372,33 +429,11 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
           [P|_] -> 
 
-
-             ?Debug4({msg_defer_async, P, Ports, maps:get(P,Ports)}),
-             Ref={node(), self(), os:timestamp()},
-
-
- {X1, X2, {X3, X4, X5}} = Ref,
-      Sref = erlang:list_to_binary([erlang:atom_to_list(X1), ":", 
-                                    erlang:pid_to_list(X2) , ":",
-                                    erlang:integer_to_binary(X3), ":",
-                                    erlang:integer_to_binary(X4), ":",
-                                    erlang:integer_to_binary(X5)
-                                   ]),
-
-     ?Debug4({msg_defer_async, Ref, Sref}),
-
-      Msg2=erlang:list_to_binary([erlang:pid_to_list(From) , ":",
-                                  Sref , "::",
-                                  Msg]),
-
-
-
-             R=gen_server:cast(P, {msg_defer, Ref, Msg, From}),
-              port_command(maps:get(P,Ports), Msg2),
- 
+             R=gen_server:cast(P, {msg_defer, no, Msg, From}),
               {reply, {ok, R}, State}
 
       end;
+
 
 
 handle_call({call_workers, Msg}, _From, #state{workers_pids=Pids}=State) ->
@@ -584,6 +619,27 @@ terminate(_Reason, _State) ->
 
 code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
+
+
+new_ets_msg(From, Msg) ->
+
+     Ref={node(), self(), os:timestamp()},
+
+      {X1, X2, {X3, X4, X5}} = Ref,
+      Sref = erlang:list_to_binary([erlang:atom_to_list(X1), ":", 
+                                    erlang:pid_to_list(X2) , ":",
+                                    erlang:integer_to_binary(X3), ":",
+                                    erlang:integer_to_binary(X4), ":",
+                                    erlang:integer_to_binary(X5)
+                                   ]),
+
+      ?Debug4({new_ets_msg_defer, Ref, Sref}),
+ 
+        Msg2=erlang:list_to_binary([erlang:pid_to_list(From) , ":",
+                                    Sref , "::",
+                                    Msg]),
+
+          {Ref, Msg2}.
 
 
 split(A, I) ->

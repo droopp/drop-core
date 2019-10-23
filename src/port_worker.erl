@@ -176,28 +176,14 @@ handle_cast({stream_msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd, port=Port,
 
 
 
-handle_cast({msg_defer, R, Msg, From}, #state{master=N, cmd=Cmd, port=Port}=State) 
+handle_cast({msg_defer, R, Msg, From}, #state{master=N, cmd=Cmd}=State) 
   when State#state.async =:= true ->
 
-    ?Debug4({msg_defer_async, From, Msg}),
+    ?Debug4({msg_defer_async, R,  From, Msg}),
 
-    Ref = new_ets_msg(N, Cmd, R, Msg),
+    Ref = new_ets_msg(R, N, Cmd, R, Msg),
 
-    {X1, X2, {X3, X4, X5}} = Ref,
-      Sref = erlang:list_to_binary([erlang:atom_to_list(X1), ":", 
-                                    erlang:pid_to_list(X2) , ":",
-                                    erlang:integer_to_binary(X3), ":",
-                                    erlang:integer_to_binary(X4), ":",
-                                    erlang:integer_to_binary(X5)
-                                   ]),
-
-     ?Debug4({msg_defer_async, Ref, Sref}),
-
-      Msg2=erlang:list_to_binary([erlang:pid_to_list(From) , ":",
-                                  Sref , "::",
-                                  Msg]),
-
-       %% port_command(Port, Msg2),
+     ?Debug4({new_ets_worker_defer, Ref}),
 
         gen_server:cast(self(), {async_loop, From, Ref}),   
 
@@ -209,9 +195,6 @@ handle_cast({async_loop, From, Ref}, #state{master=N, ev=E, port=Port, timeout=T
       ?Debug4({async_loop, From, Ref}),
 
       case process_async_ets_msg(N, E, Port, Ref, T) of
-     
-           ok ->
-              {noreply, State};
      
            {error, timeout} -> 
                From!{response, timeout},
@@ -262,20 +245,23 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
                               exit_status, binary]),
     
        ?Debug({registering, self()}),
+
         ppool_worker:register_worker(M, {self(), Port}),
 
         %% if stream type do start
-        case string:find(Cmd, "_stream") of
+
+        case string:find(erlang:atom_to_list(M), "_stream") of 
             nomatch -> ok;
             _ -> ppool_worker:stream_all_workers(M, <<"start\n">>)
         end,
 
         %% if async type
-        case string:find(Cmd, "_async") of
-            nomatch -> Async = false;
+        case string:find(erlang:atom_to_list(M), "_async") of 
+            nomatch -> 
+		Async = false;
             _ ->
                 Async = true
-
+                
         end,
 
 	  {noreply, State#state{port=Port, async=Async}};
@@ -331,6 +317,20 @@ collect_response(Port, T, Lines, OldLine) ->
     end.
 
 
+new_ets_msg(R0, N, Cmd, R, Msg) ->
+
+    ?Debug({new_ets_msg_insert, R0, R}),
+
+     true=ets:insert(N, #worker_stat{ref=R0, 
+                                     ref_from=R, pid=self(),cmd=Cmd,
+                                     req=Msg, status=running,
+                                     time_start=os:timestamp()}
+                        ),
+
+     ppool_worker:set_status_worker(N, self(), 2),
+
+     R0.
+
 
 new_ets_msg(N, Cmd, R, Msg) ->
 
@@ -338,8 +338,8 @@ new_ets_msg(N, Cmd, R, Msg) ->
 
     Ref={node(), self(), os:timestamp()},
 
-     true=ets:insert(N, #worker_stat{ref=R, 
-                                     ref_from=Ref, pid=self(),cmd=Cmd,
+     true=ets:insert(N, #worker_stat{ref=Ref, 
+                                     ref_from=R, pid=self(),cmd=Cmd,
                                      req=Msg, status=running,
                                      time_start=os:timestamp()}
                         ),
