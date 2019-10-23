@@ -191,20 +191,8 @@ handle_cast({async_loop}, #state{master=N, ev=E, port=Port, cmd=Cmd, timeout=T}=
        end;
 
 
-%% handle_cast({msg_defer, R, Msg, From}, #state{master=N, cmd=Cmd}=State) 
-%%  when State#state.async =:= true ->
-%% 
-%%     ?Debug4({msg_defer_async, R,  From, Msg}),
-%% 
-%%      _Ref = new_ets_msg(R, N, Cmd, R, Msg),
-%% 
-%%       {noreply, State};
-
-
 handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
-                                                port=Port, timeout=T}=State) 
-  when State#state.async =:= false ->
-
+                                                port=Port, timeout=T}=State) ->
     ?Debug4({msg_defer, From, Msg}),
 
     Ref = new_ets_msg(N, Cmd, R, Msg),
@@ -327,21 +315,6 @@ collect_response(Port, Lines, OldLine) ->
     end.
 
 
-new_ets_msg(R0, N, Cmd, R, Msg) ->
-
-    ?Debug({new_ets_msg_insert, R0, R}),
-
-     true=ets:insert(N, #worker_stat{ref=R0, 
-                                     ref_from=R, pid=self(),cmd=Cmd,
-                                     req=Msg, status=running,
-                                     time_start=os:timestamp()}
-                        ),
-
-     ppool_worker:set_status_worker(N, self(), 2),
-
-     R0.
-
-
 new_ets_msg(N, Cmd, R, Msg) ->
 
     ?Debug({new_ets_msg, self()}),
@@ -384,12 +357,6 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
 
               	 ?Debug4({msg_defer_async_b_response, N, DRef, Response}),
  
-                 %% true=ets:update_element(N, DRef, [
-                 %%                               {#worker_stat.status, ok},
-                 %%                               {#worker_stat.result, Response},
-                 %%                               {#worker_stat.time_end, os:timestamp()}
-                 %%                ]),
-
                   ppool_worker:set_status_worker(N, self(), 1),
                   gen_event:notify(E, {msg, {ok, DRef, Response}}),
 

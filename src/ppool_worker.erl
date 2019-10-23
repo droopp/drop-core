@@ -375,31 +375,20 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
 		     ?Debug4({cast_worker_defer2, P0, Ports, maps:get(P0,Ports)}),
 
-		     {Ref, Msg2} = new_ets_msg(From, Msg),
-
-		      ?Debug4({cast_worker_defer, P0,  Ref, Msg2}),
-
-	               R=gen_server:cast(P0, {msg_defer, Ref, Msg, From}),
+                       Msg2 = new_async_msg(From, Msg),
                        port_command(maps:get(P0, Ports), Msg2),
  
-                     {reply, {ok, R}, State}
+                     {reply, {ok, ok}, State}
            end;
 
           [P|_] -> 
 
              ?Debug4({cast_worker_defer, P, Ports, maps:get(P,Ports)}),
 
-             {Ref, Msg2} = new_ets_msg(From, Msg),
-
-    		?Debug4({cast_worker_defer1, P,  Ref, Msg2}),
-
-              R=gen_server:cast(P, {msg_defer, Ref, Msg, From}),
-
-    		?Debug4({cast_worker_defer, cast, R}),
-
-                 port_command(maps:get(P, Ports), Msg2),
+               Msg2 = new_async_msg(From, Msg),
+               port_command(maps:get(P, Ports), Msg2),
  
-              {reply, {ok, R}, State}
+              {reply, {ok, ok}, State}
 
       end;
 
@@ -624,7 +613,8 @@ code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
 
-new_ets_msg(From, Msg) ->
+
+new_async_msg(From, Msg) ->
 
      Ref={node(), self(), os:timestamp()},
 
@@ -636,13 +626,14 @@ new_ets_msg(From, Msg) ->
                                     erlang:integer_to_binary(X5)
                                    ]),
 
-      ?Debug4({new_ets_msg_defer, Ref, Sref}),
+      ?Debug4({new_async_msg_defer, Ref, Sref}),
  
         Msg2=erlang:list_to_binary([erlang:pid_to_list(From) , ":",
                                     Sref , "::",
                                     Msg]),
 
-          {Ref, Msg2}.
+          Msg2.
+
 
 
 split(A, I) ->
