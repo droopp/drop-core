@@ -315,7 +315,7 @@ collect_response(Port, Lines, OldLine) ->
     end.
 
 
-new_ets_msg(N, Cmd, R, Msg) ->
+new_ets_msg(N, Cmd, R, _Msg) ->
 
     ?Debug({new_ets_msg, self()}),
 
@@ -323,7 +323,7 @@ new_ets_msg(N, Cmd, R, Msg) ->
 
      true=ets:insert(N, #worker_stat{ref=Ref, 
                                      ref_from=R, pid=self(),cmd=Cmd,
-                                     req=Msg, status=running,
+                                     req=no, status=running,
                                      time_start=os:timestamp()}
                         ),
 
@@ -412,7 +412,7 @@ process_ets_msg(N, E, Port, Ref, Msg, T) ->
             {ok, Response} -> 
                 true=ets:update_element(N, Ref, [
                                                {#worker_stat.status, ok},
-                                               {#worker_stat.result, Response},
+                                               {#worker_stat.result, no},
                                                {#worker_stat.time_end, os:timestamp()}
                                 ]),
 
