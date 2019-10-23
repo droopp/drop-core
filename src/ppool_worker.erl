@@ -373,11 +373,11 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
                   Index = rand:uniform(length(Pidss)),
                    P0=lists:nth(Index, Pidss),
 
-		     ?Debug4({cast_worker_defer, P0, Ports, maps:get(P0,Ports)}),
+		     ?Debug4({cast_worker_defer2, P0, Ports, maps:get(P0,Ports)}),
 
 		     {Ref, Msg2} = new_ets_msg(From, Msg),
 
-		      ?Debug4({cast_worker_defer, Ref, Msg2}),
+		      ?Debug4({cast_worker_defer, P0,  Ref, Msg2}),
 
 	               R=gen_server:cast(P0, {msg_defer, Ref, Msg, From}),
                        port_command(maps:get(P0, Ports), Msg2),
@@ -391,10 +391,13 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
              {Ref, Msg2} = new_ets_msg(From, Msg),
 
-    		?Debug4({cast_worker_defer, Ref, Msg2}),
+    		?Debug4({cast_worker_defer1, P,  Ref, Msg2}),
 
               R=gen_server:cast(P, {msg_defer, Ref, Msg, From}),
-               port_command(maps:get(P, Ports), Msg2),
+
+    		?Debug4({cast_worker_defer, cast, R}),
+
+                 port_command(maps:get(P, Ports), Msg2),
  
               {reply, {ok, R}, State}
 

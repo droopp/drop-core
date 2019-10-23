@@ -176,39 +176,29 @@ handle_cast({stream_msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd, port=Port,
 
 
 
-handle_cast({msg_defer, R, Msg, From}, #state{master=N, cmd=Cmd}=State) 
-  when State#state.async =:= true ->
 
-    ?Debug4({msg_defer_async, R,  From, Msg}),
+handle_cast({async_loop}, #state{master=N, ev=E, port=Port, cmd=Cmd, timeout=T}=State) ->
 
-    Ref = new_ets_msg(R, N, Cmd, R, Msg),
+      ?Debug4({async_loop}),
 
-     ?Debug4({new_ets_worker_defer, Ref}),
-
-        gen_server:cast(self(), {async_loop, From, Ref}),   
-
-          {noreply, State};
-
-
-handle_cast({async_loop, From, Ref}, #state{master=N, ev=E, port=Port, timeout=T}=State) ->
-
-      ?Debug4({async_loop, From, Ref}),
+      Ref = new_ets_msg(N, Cmd, no, <<"start\n">>),
 
       case process_async_ets_msg(N, E, Port, Ref, T) of
      
-           {error, timeout} -> 
-               From!{response, timeout},
-               {stop, port_timeout, State};
-     
-           {ok, {DFrom, Res}} -> 
-              ?Debug4({msg_defer_async_response, DFrom, Res}),
-     
-               DFrom!{response, {ok, [Res]}},
-     
-               {noreply, State}
+           {error, timeout} -> {stop, port_timeout, State};
+           _ -> {noreply, State}
      
        end;
 
+
+%% handle_cast({msg_defer, R, Msg, From}, #state{master=N, cmd=Cmd}=State) 
+%%  when State#state.async =:= true ->
+%% 
+%%     ?Debug4({msg_defer_async, R,  From, Msg}),
+%% 
+%%      _Ref = new_ets_msg(R, N, Cmd, R, Msg),
+%% 
+%%       {noreply, State};
 
 
 handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
@@ -260,7 +250,8 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
             nomatch -> 
 		Async = false;
             _ ->
-                Async = true
+                Async = true,
+        	gen_server:cast(self(), {async_loop})
                 
         end,
 
@@ -297,7 +288,12 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 collect_response(Port, T) ->
-    collect_response(Port, T, [], <<>>).
+    case T of 
+       no ->
+    	collect_response(Port, [], <<>>);
+       A ->
+        collect_response(Port, A, [], <<>>)
+     end.
 
 collect_response(Port, T, Lines, OldLine) ->
    receive
@@ -314,6 +310,20 @@ collect_response(Port, T, Lines, OldLine) ->
     after
          T ->
             {error, timeout}
+    end.
+
+collect_response(Port, Lines, OldLine) ->
+   receive
+        {Port, {data, Data}} ->
+            case Data of
+                {eol, Line} ->
+                    {ok, [<<OldLine/binary,Line/binary>> | Lines]};
+                {noeol, Line} ->
+                    collect_response(Port, Lines, <<OldLine/binary,Line/binary>>)
+            end;
+        {Port, {exit_status, Status}} ->
+            {error, Status, Lines}
+
     end.
 
 
@@ -352,7 +362,7 @@ new_ets_msg(N, Cmd, R, Msg) ->
 
 process_async_ets_msg(N, E, Port, Ref, T) ->
 
-        case collect_response(Port, T) of
+        case collect_response(Port, no) of
    
             {ok, [Response0]} -> 
 
@@ -372,17 +382,24 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                      
                      },
 
-
-                true=ets:update_element(N, DRef, [
-                                               {#worker_stat.status, ok},
-                                               {#worker_stat.result, Response},
-                                               {#worker_stat.time_end, os:timestamp()}
-                                ]),
+              	 ?Debug4({msg_defer_async_b_response, N, DRef, Response}),
+ 
+                 %% true=ets:update_element(N, DRef, [
+                 %%                               {#worker_stat.status, ok},
+                 %%                               {#worker_stat.result, Response},
+                 %%                               {#worker_stat.time_end, os:timestamp()}
+                 %%                ]),
 
                   ppool_worker:set_status_worker(N, self(), 1),
                   gen_event:notify(E, {msg, {ok, DRef, Response}}),
 
-                {ok, {erlang:list_to_pid(erlang:binary_to_list(Spid)), Response}};
+		  DFrom = erlang:list_to_pid(erlang:binary_to_list(Spid)),
+
+              	  ?Debug4({msg_defer_async_response, DFrom, Response}),
+     
+                    DFrom!{response, {ok, [Response]}},
+
+ 		      process_async_ets_msg(N, E, Port, Ref, T);                  
 
             {error, Status, Err} ->
                 true=ets:update_element(N, Ref, [
@@ -401,6 +418,7 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                 {error, Status, Err};
 
             {error, timeout} ->
+ 
                 true=ets:update_element(N, Ref, [
                                  {#worker_stat.status, timeout},
                                  {#worker_stat.time_end, os:timestamp()}
