@@ -339,6 +339,21 @@ def get_active_nodes(p):
         data.append(row[0])
         cnt += row[1]
 
+    # check if already vip exists
+
+    cur.execute("""select s.node
+                     from node_world s
+                   where s.group0 != 'None'
+                     and s.detail like '%is_vip\": 1%'
+                     and s.active = 1
+                """)
+
+    for row in cur:
+        if row[0] in data:
+            data.remove(row[0])
+            data.insert(0, row[0])
+            break
+
     con.close()
 
     return data, cnt
@@ -385,6 +400,9 @@ def make_vip(r_servers, is_vip, vip, vip_iface):
     _strgy = os.environ.get("DROP_VIP_STRGY")
     log("get vip strategy..{}".format(_strgy))
 
+    if _strgy == "none":
+        return
+
     if _strgy is None:
         _VIP_CMDS, _RSERV_CMDS = private.get()
     else:
@@ -419,7 +437,6 @@ def make_vip(r_servers, is_vip, vip, vip_iface):
             log(_cmd)
             log(sp.check_output("{}".format(_cmd),
                                 shell=True, stderr=sp.STDOUT))
-
 
     return
 

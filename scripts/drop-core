@@ -160,7 +160,14 @@ stop_s() {
     if [ "$count" -eq "0" ]; then
         # core is down
 
-        sudo /usr/sbin/ifconfig $DROP_VIP_IFACE:0 down
+        iis=$(/usr/sbin/ifconfig |grep $SHARX_VIP_IFACE:0 |wc -l)
+
+        if [[ "$iis" -ne "0" && "none" != "$SHARX_VIP_STRGY" ]]; then
+            sudo /usr/sbin/ifconfig $SHARX_VIP_IFACE:0 down
+        fi
+
+        # clear state
+        /usr/bin/sqlite3 $SHARX_VAR_DIR/db/node_collector.db "UPDATE node_world SET active = 0 WHERE date < DATETIME('NOW', '-1 minutes');"
 
     else
 
@@ -196,6 +203,13 @@ stop_s() {
 start() {
 
     banner
+
+    # stop prev epmd if exist
+    cepmd=$(ps -aux|grep epmd|grep -v grep |awk '{print $2}')
+    if [ "$cepmd" != "" ]; then
+        echo "stop prev epmd service..$cepmd"
+        sudo kill -9 $cepmd
+    fi
 
     cd ${DROP_HOME}
 
