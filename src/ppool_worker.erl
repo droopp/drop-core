@@ -375,7 +375,7 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
 		     ?Debug4({cast_worker_defer2, P0, Ports, maps:get(P0,Ports)}),
 
-                       Msg2 = new_async_msg(From, Msg),
+                       Msg2 = new_ets_msg(Name, From, Msg),
                        port_command(maps:get(P0, Ports), Msg2),
  
                      {reply, {ok, ok}, State}
@@ -385,7 +385,7 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
              ?Debug4({cast_worker_defer, P, Ports, maps:get(P,Ports)}),
 
-               Msg2 = new_async_msg(From, Msg),
+               Msg2 = new_ets_msg(Name, From, Msg),
                port_command(maps:get(P, Ports), Msg2),
  
               {reply, {ok, ok}, State}
@@ -614,7 +614,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 
-new_async_msg(From, Msg) ->
+new_ets_msg(Name, From, Msg) ->
 
      Ref={node(), self(), os:timestamp()},
 
@@ -628,6 +628,13 @@ new_async_msg(From, Msg) ->
 
       ?Debug4({new_async_msg_defer, Ref, Sref}),
  
+
+       true=ets:insert(Name, #worker_stat{ref=Ref, 
+                                     ref_from=no, pid=self(),cmd=Name,
+                                     req=Msg, status=running,
+                                     time_start=os:timestamp()}
+                        ),
+
         Msg2=erlang:list_to_binary([erlang:pid_to_list(From) , ":",
                                     Sref , "::",
                                     Msg]),

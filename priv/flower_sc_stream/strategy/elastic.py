@@ -297,6 +297,9 @@ def start_rebalance_flow(p, m_nodes, pflows):
 
         log("read flow {} {} {} {} {}".format(f_name, f_active, f_ppools, f_count, f_ram))
 
+        if f_name.find("_stream") > 0 or f_name.find("_async") > 0:
+            continue
+
         if f_priority == 1:
             log("flow {} has 1 priority not rebalance ".format(f_name))
             continue
@@ -371,6 +374,9 @@ def get_stats_decrease(p):
 
     data = {}
     for row in cur:
+
+        if row[1].find("_stream") > 0 or row[1].find("_async") > 0:
+            continue
 
         if row[2] is None or row[4] < 0:
             continue

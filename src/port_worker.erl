@@ -168,7 +168,7 @@ handle_cast({stream_msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd, port=Port,
 
       port_command(Port, Msg),
  
-       case process_stream_ets_msg(N, E, Port, Ref, Msg, T) of
+       case process_stream_ets_msg(N, E, Port, Ref, Msg, T, os:timestamp()) of
            {error, timeout} -> {stop, port_timeout, State};
             _ -> {noreply, State}
 
@@ -315,15 +315,15 @@ collect_response(Port, Lines, OldLine) ->
     end.
 
 
-new_ets_msg(N, Cmd, R, _Msg) ->
+new_ets_msg(N, _Cmd, R, Msg) ->
 
     ?Debug({new_ets_msg, self()}),
 
     Ref={node(), self(), os:timestamp()},
 
      true=ets:insert(N, #worker_stat{ref=Ref, 
-                                     ref_from=R, pid=self(),cmd=Cmd,
-                                     req=no, status=running,
+                                     ref_from=R, pid=self(),cmd=N,
+                                     req=Msg, status=running,
                                      time_start=os:timestamp()}
                         ),
 
@@ -356,9 +356,15 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                      },
 
               	 ?Debug4({msg_defer_async_b_response, N, DRef, Response}),
+
+                true=ets:update_element(N, DRef, [
+                                               {#worker_stat.status, ok},
+                                               {#worker_stat.result, no},
+                                               {#worker_stat.time_end, os:timestamp()}
+                                ]),
  
-                  ppool_worker:set_status_worker(N, self(), 1),
-                  gen_event:notify(E, {msg, {ok, DRef, Response}}),
+                  %% ppool_worker:set_status_worker(N, self(), 1),
+                  gen_event:notify(E, {msg, {ok, DRef, [Response]}}),
 
 		  DFrom = erlang:list_to_pid(erlang:binary_to_list(Spid)),
 
@@ -454,12 +460,24 @@ process_ets_msg(N, E, Port, Ref, Msg, T) ->
         end.
 
 
-process_stream_ets_msg(N, E, Port, Ref, Msg, T) ->
+process_stream_ets_msg(N, E, Port, Ref, Msg, T, LastTime) ->
 
         case collect_response(Port, T) of
             {ok, Response} -> 
                   gen_event:notify(E, {msg, {ok, Ref, Response}}),
-                    process_stream_ets_msg(N, E, Port, Ref, Msg, T);
+
+    		     Ref2={node(), self(), os:timestamp()},
+
+                     FinTime = os:timestamp(),
+
+		     true=ets:insert(N, #worker_stat{ref=Ref2, 
+						     ref_from=no, pid=self(),cmd=N,
+						     req=Msg, status=ok, result=no,
+						     time_start=LastTime,
+                                                     time_end=FinTime}
+					),
+
+                    process_stream_ets_msg(N, E, Port, Ref, Msg, T, FinTime);
 
             {error, Status, Err} ->
                 true=ets:update_element(N, Ref, [
