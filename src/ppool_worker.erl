@@ -344,7 +344,7 @@ handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids}=State) ->
               {reply, {ok, []}, State};
 
           [P|_] -> 
-            R = ppool_worker:cast_worker(P, Msg),
+            R = gen_server:cast(P, Msg),
 
               {reply, {ok, R}, State}
 
