@@ -345,14 +345,15 @@ handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids}=State) ->
               {reply, {ok, []}, State};
 
           [P|_] -> 
-            R=gen_server:cast(P, Msg),
+            R = ppool_worker:cast_worker(P, Msg),
 
               {reply, {ok, R}, State}
 
       end;
 
 
-handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, async=Async, ports_pids=Ports}=State) 
+handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, 
+                                                       async=Async, ports_pids=Ports}=State) 
   when Async =:= true ->
     
     Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
@@ -464,9 +465,32 @@ handle_call(_Request, _From, State) ->
 handle_cast({add_nomore_info},  #state{nomore=C}=State) ->
     {noreply, State#state{nomore=C+1}};
 
+handle_call({cast_worker, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, 
+                                                 async=Async, ports_pids=Ports}=State) 
+  when Async =:= true ->
 
-handle_cast({cast_worker, Msg},  #state{workers_pids=Pids}=State) ->
+   %% get random pid
+   List=maps:keys(Pids),
 
+    case length(List) of
+        0 -> ok;
+        L ->
+            Index = rand:uniform(L),
+
+            Pid=lists:nth(Index, List),
+
+            ?Debug({cast_worker_random, Pid}),
+
+               Msg2 = new_ets_msg(Name, no, Msg),
+               port_command(maps:get(P, Ports), Msg2)
+    end,
+
+      {noreply, State};
+
+
+ 
+handle_cast({cast_worker, Msg},  #state{workers_pids=Pids, async=Async}=State) ->
+   when Async =:=false ->
    %% get random pid
    List=maps:keys(Pids),
 
@@ -485,15 +509,29 @@ handle_cast({cast_worker, Msg},  #state{workers_pids=Pids}=State) ->
       {noreply, State};
 
 
+handle_call({cast_all_workers, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, 
+                                                 async=Async, ports_pids=Ports}=State) 
+  when Async =:= true ->
 
-handle_cast({cast_all_workers, Msg},  #state{workers_pids=Pids}=State) ->
+    ?Debug(Pids),
+        lists:foreach(fun(Pid) ->
+                             Msg2 = new_ets_msg(Name, no, Msg),
+                               port_command(maps:get(Pid, Ports), Msg2)
+ 
+                         end,
+                     maps:keys(Pids)),
+
+	        {noreply, State};
+
+
+handle_cast({cast_all_workers, Msg},  #state{workers_pids=Pids, async=Async}=State) ->
+   when Async =:=false ->
+
     ?Debug(Pids),
         lists:foreach(fun(Pid) -> gen_server:cast(Pid, Msg) end,
                                    maps:keys(Pids)),
 
 	        {noreply, State};
-
-
 
 
 handle_cast({set_status_worker, Pid, S},
@@ -619,7 +657,8 @@ new_ets_msg(Name, From, Msg) ->
      Ref={node(), self(), os:timestamp()},
 
       {X1, X2, {X3, X4, X5}} = Ref,
-      Sref = erlang:list_to_binary([erlang:atom_to_list(X1), ":", 
+
+       Sref = erlang:list_to_binary([erlang:atom_to_list(X1), ":", 
                                     erlang:pid_to_list(X2) , ":",
                                     erlang:integer_to_binary(X3), ":",
                                     erlang:integer_to_binary(X4), ":",
@@ -635,7 +674,14 @@ new_ets_msg(Name, From, Msg) ->
                                      time_start=os:timestamp()}
                         ),
 
-        Msg2=erlang:list_to_binary([erlang:pid_to_list(From) , ":",
+        case From of
+            no ->
+                FromS = <<"no">>;
+            F ->
+                FromS = erlang:pid_to_list(From)
+        end,
+
+        Msg2=erlang:list_to_binary([FromS, ":",
                                     Sref , "::",
                                     Msg]),
 
