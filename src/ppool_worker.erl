@@ -355,15 +355,6 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
                                                        async=Async, ports_pids=Ports}=State) 
   when Async =:= true ->
     
-    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
-
-    ?Debug4({cast_worker_defer, From, self(), Msg, Free}),
-
-    case maps:keys(Free) of
-          [] -> 
-
-           ppool_worker:add_nomore_info(Name),
-
            case maps:keys(Pids) of
                [] ->
                    {reply, {error, noproc}, State};
@@ -379,18 +370,8 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
                        port_command(maps:get(P0, Ports), Msg2),
  
                      {reply, {ok, ok}, State}
+
            end;
-
-          [P|_] -> 
-
-             ?Debug4({cast_worker_defer, P, Ports, maps:get(P,Ports)}),
-
-               Msg2 = new_ets_msg(Name, From, Msg),
-               port_command(maps:get(P, Ports), Msg2),
- 
-              {reply, {ok, ok}, State}
-
-      end;
 
 
 
