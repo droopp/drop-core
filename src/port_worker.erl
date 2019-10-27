@@ -143,7 +143,7 @@ handle_cast({dmsg, R, Msg}, #state{master=N}=State) ->
         
         [Ms] -> %% local 
            ?Debug1({local, self()}),
-            ppool_worker:cast_worker(self(), R, Msg)
+            ppool_worker:cast_worker(self(), R, Msg);
 
         Arr ->
            ?Debug1({remote, Arr}),
@@ -367,16 +367,14 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                   gen_event:notify(E, {msg, {ok, DRef, [Response]}}),
 
                   case Spid of
-                      no ->
+                      <<"no">> ->
                           ok;
                       Spid2 ->
+		          DFrom = erlang:list_to_pid(erlang:binary_to_list(Spid2)),
 
-		                DFrom = erlang:list_to_pid(erlang:binary_to_list(Spid)),
-
-              	        ?Debug4({msg_defer_async_response, DFrom, Response}),
+              	           ?Debug4({msg_defer_async_response, DFrom, Response}),
      
-                        DFrom!{response, {ok, [Response]}}
-
+                            DFrom!{response, {ok, [Response]}}
                    end,
 
  		      process_async_ets_msg(N, E, Port, Ref, T);                  

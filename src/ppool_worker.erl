@@ -33,7 +33,6 @@
          get_result_worker/2,
          add_nomore_info/1,
 
-
          subscribe/2,
          unsubscribe/2,
 
@@ -465,7 +464,8 @@ handle_call(_Request, _From, State) ->
 handle_cast({add_nomore_info},  #state{nomore=C}=State) ->
     {noreply, State#state{nomore=C+1}};
 
-handle_call({cast_worker, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, 
+
+handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids, 
                                                  async=Async, ports_pids=Ports}=State) 
   when Async =:= true ->
 
@@ -482,14 +482,14 @@ handle_call({cast_worker, Msg}, {From,_}, #state{name=Name, workers_pids=Pids,
             ?Debug({cast_worker_random, Pid}),
 
                Msg2 = new_ets_msg(Name, no, Msg),
-               port_command(maps:get(P, Ports), Msg2)
+               port_command(maps:get(Pid, Ports), Msg2)
     end,
 
       {noreply, State};
 
 
  
-handle_cast({cast_worker, Msg},  #state{workers_pids=Pids, async=Async}=State) ->
+handle_cast({cast_worker, Msg},  #state{workers_pids=Pids, async=Async}=State) 
    when Async =:=false ->
    %% get random pid
    List=maps:keys(Pids),
@@ -509,12 +509,15 @@ handle_cast({cast_worker, Msg},  #state{workers_pids=Pids, async=Async}=State) -
       {noreply, State};
 
 
-handle_call({cast_all_workers, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, 
+handle_cast({cast_all_workers, {_, _, Msg}}, #state{name=Name, workers_pids=Pids, 
                                                  async=Async, ports_pids=Ports}=State) 
   when Async =:= true ->
 
     ?Debug(Pids),
         lists:foreach(fun(Pid) ->
+
+                     ?Debug4({cast_all_async, Msg, Pid}),
+ 
                              Msg2 = new_ets_msg(Name, no, Msg),
                                port_command(maps:get(Pid, Ports), Msg2)
  
@@ -524,7 +527,7 @@ handle_call({cast_all_workers, Msg}, {From,_}, #state{name=Name, workers_pids=Pi
 	        {noreply, State};
 
 
-handle_cast({cast_all_workers, Msg},  #state{workers_pids=Pids, async=Async}=State) ->
+handle_cast({cast_all_workers, Msg},  #state{workers_pids=Pids, async=Async}=State)
    when Async =:=false ->
 
     ?Debug(Pids),
@@ -678,10 +681,10 @@ new_ets_msg(Name, From, Msg) ->
             no ->
                 FromS = <<"no">>;
             F ->
-                FromS = erlang:pid_to_list(From)
+                FromS = erlang:pid_to_list(F)
         end,
 
-        Msg2=erlang:list_to_binary([FromS, ":",
+        Msg2=erlang:list_to_binary([FromS , ":",
                                     Sref , "::",
                                     Msg]),
 
