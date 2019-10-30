@@ -142,14 +142,11 @@ handle_cast({dmsg, R, Msg}, #state{master=N}=State) ->
    ?Debug1({start_distrib_dmsg, R, Msg}),
     ?Debug1({pg_group, pg2:get_members(N)}),
 
-    Ms=whereis(N),
-
     case pg2:get_members(N) of
         
         [Ms] -> %% local 
-           ?Debug1({local, self()}),
-            gen_server:cast(self(), {msg, R, Msg});
-
+           ?Debug1({local, Ms}),
+            ppool_worker:cast_worker(Ms, R, Msg);
 
         Arr ->
            ?Debug1({remote, Arr}),
