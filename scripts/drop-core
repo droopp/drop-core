@@ -35,8 +35,6 @@ then
 fi
 
 # DROP_VIP_STRGY
-
-export IS_DOCKER="1"
 export IS_DROP_TLS="0"
 
 ERL_HOME=/opt/erlang/bin/
