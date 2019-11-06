@@ -361,7 +361,7 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                                                {#worker_stat.time_end, os:timestamp()}
                                 ]),
  
-                  %% ppool_worker:set_status_worker(N, self(), 1),
+                  ppool_worker:set_status_worker(N, self(), decr),
                   gen_event:notify(E, {msg, {ok, DRef, [Response]}}),
 
                   case Spid of

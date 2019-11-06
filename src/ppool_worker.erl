@@ -258,8 +258,10 @@ handle_call({start_worker, _}, _From, State) ->
 
 
 
+
 handle_call({stop_all_workers, C}, _From, 
-                       #state{workers_pids=Pids}=State) ->
+                       #state{workers_pids=Pids, async=Async}=State)
+  when Async =:= false ->
 
     Cr = length(maps:keys(Pids)),
 
@@ -269,6 +271,32 @@ handle_call({stop_all_workers, C}, _From,
          true -> 
 
            Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
+            ?Debug4({stop, split(maps:keys(Free), Cr-C)}),
+
+             lists:foreach(fun(Pid) ->
+                                   gen_server:cast(Pid, {msg, no, stop}) end, 
+                                   split(maps:keys(Free), Cr-C)
+                           );
+         false ->
+             ok
+     end, 
+
+	   {reply, ok, State};
+
+
+
+handle_call({stop_all_workers, C}, _From, 
+                       #state{workers_pids=Pids, async=Async}=State)
+  when Async =:= true ->
+
+    Cr = length(maps:keys(Pids)),
+
+    ?Debug4({stop_all_workers, Cr, C}),
+
+    case C > 0 andalso Cr - C > 0 of
+         true -> 
+
+           Free=maps:filter(fun(_K, V) -> V=:=0 end ,Pids),
             ?Debug4({stop, split(maps:keys(Free), Cr-C)}),
 
              lists:foreach(fun(Pid) ->
@@ -366,7 +394,7 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
 		     ?Debug4({cast_worker_defer2, P0, Ports, maps:get(P0,Ports)}),
 
-                       Msg2 = new_ets_msg(Name, From, Msg),
+                       Msg2 = new_ets_msg(Name, From, Msg, P0),
                        port_command(maps:get(P0, Ports), Msg2),
  
                      {reply, {ok, ok}, State}
@@ -462,7 +490,7 @@ handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids,
 
             ?Debug({cast_worker_random, Pid}),
 
-               Msg2 = new_ets_msg(Name, no, Msg),
+               Msg2 = new_ets_msg(Name, no, Msg, Pid),
                port_command(maps:get(Pid, Ports), Msg2)
     end,
 
@@ -499,7 +527,7 @@ handle_cast({cast_all_workers, {_, _, Msg}}, #state{name=Name, workers_pids=Pids
 
                      ?Debug4({cast_all_async, Msg, Pid}),
  
-                             Msg2 = new_ets_msg(Name, no, Msg),
+                             Msg2 = new_ets_msg(Name, no, Msg, Pid),
                                port_command(maps:get(Pid, Ports), Msg2)
  
                          end,
@@ -521,9 +549,17 @@ handle_cast({cast_all_workers, Msg},  #state{workers_pids=Pids, async=Async}=Sta
 handle_cast({set_status_worker, Pid, S},
             #state{workers_pids=Pids}=State) ->
 
-	{noreply, State#state{workers_pids=maps:update(Pid, S, Pids)}};
+            Cnt = maps:get(Pid, Pids),
 
+            case S of
+              inc ->
+                 {noreply, State#state{workers_pids=maps:update(Pid, Cnt+1, Pids)}};
+              decr ->
+                  {noreply, State#state{workers_pids=maps:update(Pid, Cnt-1, Pids)}};
+              N ->
+           	  {noreply, State#state{workers_pids=maps:update(Pid, N, Pids)}}
 
+            end;
 
 
 handle_cast({subscribe, S, Filter, API}, #state{name=Name}=State) ->
@@ -636,7 +672,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 
-new_ets_msg(Name, From, Msg) ->
+new_ets_msg(Name, From, Msg, P0) ->
 
      Ref={node(), self(), os:timestamp()},
 
@@ -669,6 +705,8 @@ new_ets_msg(Name, From, Msg) ->
                                     Sref , "::",
                                     Msg]),
 
+ 	  ppool_worker:set_status_worker(Name, P0, inc),
+        
           Msg2.
 
 
