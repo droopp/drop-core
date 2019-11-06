@@ -30,7 +30,7 @@ def do(p, pstats, m_nodes, pflows):
 
     start_init_flows(p, pstats, m_nodes, pflows)
 
-    pstats = get_stats_decrease(p)
+    pstats = get_stats_decrease(p, pflows)
 
     log("start decrease flows..")
 
@@ -336,7 +336,7 @@ def start_rebalance_flow(p, m_nodes, pflows):
             continue
 
 
-def get_stats_decrease(p):
+def get_stats_decrease(p, pflows):
     con = connect(p)
     cur = con.cursor()
 
@@ -345,7 +345,7 @@ def get_stats_decrease(p):
         select t.node, t.name, t.cnt,
                t.ok/(60*1000/t.time),
                t.ok, t.nm,
-               t.timeo, t.err
+               t.timeo, t.err, t.time, t.run
 
           from (
              select s.node, l.name
@@ -386,6 +386,24 @@ def get_stats_decrease(p):
             _oks = row[3]
 
         workers = math.ceil(_oks) - math.ceil(row[2])
+
+
+        if row[1].find("_async") > 0:
+            _flow = [f for f in pflows if f.get("name") == row[1]][0]
+            _atime = [[int(y.get("cmd").split("::")[-1]) for y in x.get("cook") if y.get("cmd").split("::")[2] == "start_all_workers"]
+                       for x in _flow.get("scenes")][0][0]
+
+            _diff = (row[2]*_atime*60) - (row[4] + row[9])
+ 
+            if _diff < 0 :
+                workers = 1
+
+            elif _diff > 0 and (_diff-_atime*60)/_atime*60 >= 1:
+                workers = -1
+
+            else:
+                workers = 0
+
 
         log("ppool stat {} need {}".format(row, workers))
 
