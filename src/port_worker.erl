@@ -182,7 +182,7 @@ handle_cast({async_loop}, #state{master=N, ev=E, port=Port, cmd=Cmd, timeout=T}=
       Ref = new_ets_msg(N, Cmd, no, <<"start\n">>),
 
       case process_async_ets_msg(N, E, Port, Ref, T) of
-     
+           {stop, normal} -> {stop, normal, State};
            {error, timeout} -> {stop, port_timeout, State};
            _ -> {noreply, State}
      
@@ -334,7 +334,10 @@ new_ets_msg(N, _Cmd, R, Msg) ->
 process_async_ets_msg(N, E, Port, Ref, T) ->
 
         case collect_response(Port, no) of
-   
+
+            {ok, [<<"stop_async_worker">>]} ->
+            	{stop, normal};
+
             {ok, [Response0]} -> 
 
               [SysI, Response] =  binary:split(Response0, <<"::">>),
@@ -346,7 +349,7 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                         erlang:list_to_pid(erlang:binary_to_list(X2)),
 
                         { 
-                          erlang:binary_to_integer(X3),
+                         erlang:binary_to_integer(X3),
                           erlang:binary_to_integer(X4),
                           erlang:binary_to_integer(X5)
                         }
@@ -362,20 +365,22 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                                 ]),
  
                   ppool_worker:set_status_worker(N, self(), decr),
-                  gen_event:notify(E, {msg, {ok, DRef, [Response]}}),
 
-                  case Spid of
-                      <<"no">> ->
-                          ok;
-                      Spid2 ->
-		          DFrom = erlang:list_to_pid(erlang:binary_to_list(Spid2)),
+		  gen_event:notify(E, {msg, {ok, DRef, [Response]}}),
 
-              	           ?Debug4({msg_defer_async_response, DFrom, Response}),
-     
-                            DFrom!{response, {ok, [Response]}}
-                   end,
+		  case Spid of
+		      <<"no">> ->
+			  ok;
+		      Spid2 ->
+			  DFrom = erlang:list_to_pid(erlang:binary_to_list(Spid2)),
 
- 		      process_async_ets_msg(N, E, Port, Ref, T);                  
+			   ?Debug4({msg_defer_async_response, DFrom, Response}),
+	     
+			    DFrom!{response, {ok, [Response]}}
+		   end,
+
+		      process_async_ets_msg(N, E, Port, Ref, T);
+
 
             {error, Status, Err} ->
                 true=ets:update_element(N, Ref, [

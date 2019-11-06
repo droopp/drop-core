@@ -41,12 +41,16 @@ def add_input(input_queue):
 
     while True:
         msg = read()
-        input_queue.put(msg)
+
+        if msg == "stop_async_worker":
+            send(msg)
+        else:
+            input_queue.put(msg)
 
 
 def process(args):
 
-    msg = args
+    msg, t = args
 
     log("start working..")
     log("get message: " + msg)
@@ -55,14 +59,14 @@ def process(args):
 
     resp = msg
 
-    gevent.sleep(2)
+    gevent.sleep(t)
 
     send(resp)
 
     log("message send: {} ".format(time.time() - _b))
 
 
-def main(num):
+def main(num, t):
 
     pool = Pool(int(num))
 
@@ -79,7 +83,7 @@ def main(num):
         if not msg:
             break
 
-        g = pool.spawn(process, (msg))
+        g = pool.spawn(process, (msg, t))
         g.link_exception(exception_callback)
 
 
@@ -92,4 +96,4 @@ def exception_callback(g):
         send(exc)
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    main(sys.argv[1], int(sys.argv[2]))

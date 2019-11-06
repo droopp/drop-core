@@ -286,21 +286,27 @@ handle_call({stop_all_workers, C}, _From,
 
 
 handle_call({stop_all_workers, C}, _From, 
-                       #state{workers_pids=Pids, async=Async}=State)
+                       #state{name=Name, workers_pids=Pids, ports_pids=Ports, async=Async}=State)
   when Async =:= true ->
 
     Cr = length(maps:keys(Pids)),
 
-    ?Debug4({stop_all_workers, Cr, C}),
+    ?Debug4({stop_all_workers_async, Cr, C}),
 
     case C > 0 andalso Cr - C > 0 of
          true -> 
 
-           Free=maps:filter(fun(_K, V) -> V=:=0 end ,Pids),
+           Free=maps:filter(fun(_K, V) -> V=:=2 end ,Pids),
+            ?Debug4({stop_b_split, maps:keys(Free), Cr-C}),
+
+
             ?Debug4({stop, split(maps:keys(Free), Cr-C)}),
 
              lists:foreach(fun(Pid) ->
-                                   gen_server:cast(Pid, {msg, no, stop}) end, 
+				   ppool_worker:set_status_worker(Name, Pid, 0),
+                                   port_command(maps:get(Pid, Ports), <<"stop_async_worker\n">>)
+
+                                  end, 
                                    split(maps:keys(Free), Cr-C)
                            );
          false ->
@@ -382,8 +388,10 @@ handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids}=State) ->
 handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, 
                                                        async=Async, ports_pids=Ports}=State) 
   when Async =:= true ->
-    
-           case maps:keys(Pids) of
+ 
+        Free=maps:filter(fun(_K, V) -> V>=2 end ,Pids),
+
+           case maps:keys(Free) of
                [] ->
                    {reply, {error, noproc}, State};
 
@@ -479,7 +487,7 @@ handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids,
   when Async =:= true ->
 
    %% get random pid
-   List=maps:keys(Pids),
+   List=maps:keys(maps:filter(fun(_K, V) -> V>=2 end ,Pids)),
 
     case length(List) of
         0 -> ok;
@@ -522,7 +530,9 @@ handle_cast({cast_all_workers, {_, _, Msg}}, #state{name=Name, workers_pids=Pids
                                                  async=Async, ports_pids=Ports}=State) 
   when Async =:= true ->
 
-    ?Debug(Pids),
+   List=maps:filter(fun(_K, V) -> V>=2 end ,Pids),
+
+    ?Debug(List),
         lists:foreach(fun(Pid) ->
 
                      ?Debug4({cast_all_async, Msg, Pid}),
@@ -531,7 +541,7 @@ handle_cast({cast_all_workers, {_, _, Msg}}, #state{name=Name, workers_pids=Pids
                                port_command(maps:get(Pid, Ports), Msg2)
  
                          end,
-                     maps:keys(Pids)),
+                     maps:keys(List)),
 
 	        {noreply, State};
 
@@ -550,11 +560,15 @@ handle_cast({set_status_worker, Pid, S},
             #state{workers_pids=Pids}=State) ->
 
             Cnt = maps:get(Pid, Pids),
-
+            
             case S of
               inc ->
+                 ?Debug4({set_status_worker_inc, Pid, Cnt, S}),
+ 
                  {noreply, State#state{workers_pids=maps:update(Pid, Cnt+1, Pids)}};
               decr ->
+                 ?Debug4({set_status_worker_decr, Pid, Cnt, S}),
+
                   {noreply, State#state{workers_pids=maps:update(Pid, Cnt-1, Pids)}};
               N ->
            	  {noreply, State#state{workers_pids=maps:update(Pid, N, Pids)}}
@@ -711,12 +725,18 @@ new_ets_msg(Name, From, Msg, P0) ->
 
 
 
+split([], _I) ->
+    [];
+
 split(A, I) ->
     split(A, I, []).
 
 split(_, I, R) when I =:= 0 ->
     R;
 
+split(A, I, _) when I > length(A) ->
+    A;
+ 
 split(A, I, R) when I > 0 ->
     [H| T] = A,
         split(T, I-1, [H|R]).
