@@ -323,7 +323,8 @@ handle_call({register, {Pid, Port}}, _From, #state{workers_pids=Pids, ports_pids
 
 
 
-handle_call({call_worker, Msg}, _From, #state{workers_pids=Pids}=State) ->
+handle_call({call_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
+  when Async =:= false ->
     
     Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
@@ -367,8 +368,9 @@ handle_call({first_call_worker, Msg}, _From,
 
 
 
-handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids}=State) ->
-    
+handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
+  when Async =:= false ->
+ 
     Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
     ?Debug(Free),
@@ -445,8 +447,9 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
 
 
-handle_call({call_workers, Msg}, _From, #state{workers_pids=Pids}=State) ->
-    
+handle_call({call_workers, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
+  when Async =:= false ->
+ 
     Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
     ?Debug(Free),
