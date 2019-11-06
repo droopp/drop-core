@@ -321,7 +321,9 @@ handle_call({register, {Pid, Port}}, _From, #state{workers_pids=Pids, ports_pids
     erlang:monitor(process, Pid),
         {reply, ok, State#state{workers_pids=maps:put(Pid, 0, Pids), ports_pids=maps:put(Pid, Port, Ports) } };
 
-
+handle_call({call_worker, _Msg}, _From, #state{async=Async}=State) 
+  when Async =:= true ->
+ 	{reply, {ok, []}, State};
 
 handle_call({call_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
   when Async =:= false ->
@@ -367,6 +369,9 @@ handle_call({first_call_worker, Msg}, _From,
       end;
 
 
+handle_call({call_cast_worker, _Msg}, _From, #state{async=Async}=State) 
+  when Async =:= true ->
+ 	{reply, {ok, []}, State};
 
 handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
   when Async =:= false ->
@@ -445,7 +450,9 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
       end;
 
-
+handle_call({call_workers, _Msg}, _From, #state{async=Async}=State) 
+  when Async =:= true ->
+     {reply, {ok, []}, State};
 
 handle_call({call_workers, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
   when Async =:= false ->
