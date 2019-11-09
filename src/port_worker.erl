@@ -340,6 +340,7 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                 true=ets:update_element(N, Ref, [
                                                {#worker_stat.status, ok},
                                                {#worker_stat.result, no},
+                                               {#worker_stat.time_start, os:timestamp()},
                                                {#worker_stat.time_end, os:timestamp()}
                                 ]),
  
@@ -393,6 +394,7 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                 true=ets:update_element(N, Ref, [
                                  {#worker_stat.status, error},
                                  {#worker_stat.result, Status},
+                                 {#worker_stat.time_start, os:timestamp()},
                                  {#worker_stat.time_end, os:timestamp()}
                                 ]),
 
@@ -409,6 +411,7 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
  
                 true=ets:update_element(N, Ref, [
                                  {#worker_stat.status, timeout},
+                                 {#worker_stat.time_start, os:timestamp()},
                                  {#worker_stat.time_end, os:timestamp()}
                                 ]),
 
