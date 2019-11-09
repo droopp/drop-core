@@ -336,6 +336,13 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
         case collect_response(Port, no) of
 
             {ok, [<<"stop_async_worker">>]} ->
+
+                true=ets:update_element(N, Ref, [
+                                               {#worker_stat.status, ok},
+                                               {#worker_stat.result, no},
+                                               {#worker_stat.time_end, os:timestamp()}
+                                ]),
+ 
             	{stop, normal};
 
             {ok, [Response0]} -> 

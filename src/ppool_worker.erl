@@ -398,16 +398,16 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
  
         Free=maps:filter(fun(_K, V) -> V>=2 end ,Pids),
 
-           case maps:keys(Free) of
-               [] ->
+           case map_size(Free) of
+               0 ->
                    {reply, {error, noproc}, State};
 
-               Pidss ->
+               _ ->
 
-                  Index = rand:uniform(length(Pidss)),
-                   P0=lists:nth(Index, Pidss),
+                  List = maps:to_list(Free),
+                  [{P0, _}|_] = lists:keysort(2, List),
 
-		     ?Debug4({cast_worker_defer2, P0, Ports, maps:get(P0,Ports)}),
+		     ?Debug4({cast_worker_defer2, List, P0, Ports, maps:get(P0,Ports)}),
 
                        Msg2 = new_ets_msg(Name, From, Msg, P0),
                        port_command(maps:get(P0, Ports), Msg2),
@@ -496,24 +496,21 @@ handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids,
                                                  async=Async, ports_pids=Ports}=State) 
   when Async =:= true ->
 
-   %% get random pid
-   List=maps:keys(maps:filter(fun(_K, V) -> V>=2 end ,Pids)),
+   Free = maps:filter(fun(_K, V) -> V>=2 end ,Pids),
 
-    case length(List) of
+    case map_size(Free) of
         0 -> ok;
-        L ->
-            Index = rand:uniform(L),
+        _ ->
+            List = maps:to_list(Free),
+            [{Pid, _}|_] = lists:keysort(2, List),
 
-            Pid=lists:nth(Index, List),
-
-            ?Debug({cast_worker_random, Pid}),
+            ?Debug({cast_worker_random, List, Pid}),
 
                Msg2 = new_ets_msg(Name, no, Msg, Pid),
                port_command(maps:get(Pid, Ports), Msg2)
     end,
 
       {noreply, State};
-
 
  
 handle_cast({cast_worker, Msg},  #state{workers_pids=Pids, async=Async}=State) 
