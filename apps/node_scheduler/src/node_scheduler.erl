@@ -109,7 +109,7 @@ handle_info(timeout, State) ->
     
     ppool_worker:subscribe(node_mcast_stream, {node_collector, <<"system0::">>, sone}),
 
-    ppool_worker:subscribe(flower, {node_api, <<"system::">>, sone}),
+    ppool_worker:subscribe(flower, {node_api, <<"system::">>, one}),
 
     ppool_worker:subscribe(flower_sc_stream, {flower, <<"system::">>, sone}),
 

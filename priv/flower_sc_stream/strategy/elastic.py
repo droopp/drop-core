@@ -378,32 +378,41 @@ def get_stats_decrease(p, pflows):
         if row[1].find("_stream") > 0:
             continue
 
-        if row[2] is None or row[4] < 0:
-            continue
-
-        _oks = 1
-        if row[3] is not None:
-            _oks = row[3]
-
-        workers = math.ceil(_oks) - math.ceil(row[2])
-
-
         if row[1].find("_async") > 0:
-            _flow = [f for f in pflows if f.get("name") == row[1]][0]
-            _atime = [[int(y.get("cmd").split("::")[-1]) for y in x.get("cook") if y.get("cmd").split("::")[2] == "start_all_workers"]
-                       for x in _flow.get("scenes")][0][0]
 
-            _diff = (row[2]*_atime*60) - (row[4] + row[9])
- 
-            if _diff < 0 :
-                workers = 1
+            try:
 
-            elif _diff > 0 and (_diff-_atime*60)/_atime*60 >= 1:
-                workers = -1
+                _flow = [f for f in pflows if f.get("name") == row[1]][0]
+                _atime = [[int(y.get("cmd").split("::")[-1]) for y in x.get("cook") if y.get("cmd").split("::")[2] == "start_all_workers"]
+                          for x in _flow.get("scenes")][0][0]
 
-            else:
-                workers = 0
+                _diff = (row[2]*_atime*60) - (row[4] + row[9])
 
+                if _diff < 0:
+                    workers = 1
+
+                elif _diff > 0 and (_diff-_atime*60)/_atime*60 >= 1:
+                    workers = -1
+
+                else:
+                    workers = 0
+
+                log("define async flow workers {}".format(workers))
+
+            except Exception:
+                log("ERROR define async flow name {}".format(row[1]))
+                continue
+
+        else:
+
+            if row[2] is None or row[4] < 0:
+                continue
+
+            _oks = 1
+            if row[3] is not None:
+                _oks = row[3]
+
+            workers = math.ceil(_oks) - math.ceil(row[2])
 
         log("ppool stat {} need {}".format(row, workers))
 
