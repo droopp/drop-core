@@ -222,6 +222,7 @@ def check_add_resourse(p, name, cnt, node, pflows, is_distrib=False):
                         break
 
                     else:
+                    	log("....no more resources {} > {} {} <  {}".format(l[1], _ram_need, l[0], 85))
                         continue
 
                 else:
