@@ -19,6 +19,13 @@
     -define(Debug4(M), void).
 -endif.
 
+-ifdef(debug44).
+    -define(Debug44(M), io:format("~p~n", [M])).
+-else.
+    -define(Debug44(M), void).
+-endif.
+
+
 
 -define(ERROR_TIMEOUT, 500).
 -define(NO_MORE_PPOOL, node_collector).

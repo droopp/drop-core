@@ -217,6 +217,7 @@ def check_add_resourse(p, name, cnt, node, pflows, is_distrib=False):
                     log("....try add all flow {} {} {}".format(n, f_name, _ram_need))
 
                     if l[1] > _ram_need and l[0] < 85:
+                        send("system::{}::change_limit::{}::{}".format(n, f_name, cnt))
                         send("system::{}::{}::start".format(n, f_name))
                         break
 

@@ -89,6 +89,11 @@ init([Name, Limit, MFA]) ->
 
 	Async = string:find(erlang:atom_to_list(Name), "_async") =/= nomatch,
 
+        case Async  of
+          true -> process_flag(trap_exit, true);
+          _ -> ok
+        end,
+           
     	?Debug4({init, async, Async}),
 
 	{ok, #state{limit=Limit, mfa=MFA, name=Name, async=Async}}.
@@ -111,6 +116,7 @@ register_worker(Name, Pid0) ->
 %% start/stop worker
 
 start_worker(Name, Cmd) ->
+    ?Debug44({call_start_worker, Name, Cmd}),
     gen_server:call(Name, {start_worker, Cmd}).
 
 start_all_workers(Name, Cmd) ->
@@ -244,7 +250,8 @@ handle_call({start_worker, Cmd}, _From, #state{name=Name,
   when Limit > 0 ->
 
     NewLimit = Limit - 1,
-
+    ?Debug44({x_call_start_worker_limit, Limit, NewLimit}),
+ 
          {ok, Pid} = supervisor:start_child(
                        list_to_atom(atom_to_list(Name)++"_sup"),
                        [Cmd]),
@@ -409,9 +416,11 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
 		     ?Debug4({cast_worker_defer2, List, P0, Ports, maps:get(P0,Ports)}),
 
-                       Msg2 = new_ets_msg(Name, From, Msg, P0),
-                       port_command(maps:get(P0, Ports), Msg2),
- 
+                      %%Msg2 = new_ets_msg(Name, From, Msg, P0),
+                       %%port_command(maps:get(P0, Ports), Msg2),
+
+	                spawn_link(fun() -> ok=new_ets_msg(Name, From, Msg, P0, Ports) end), 
+
                      {reply, {ok, ok}, State}
 
            end;
@@ -506,8 +515,10 @@ handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids,
 
             ?Debug({cast_worker_random, List, Pid}),
 
-               Msg2 = new_ets_msg(Name, no, Msg, Pid),
-               port_command(maps:get(Pid, Ports), Msg2)
+               %%Msg2 = new_ets_msg(Name, no, Msg, Pid),
+               %%port_command(maps:get(Pid, Ports), Msg2)
+
+               spawn_link(fun() -> ok=new_ets_msg(Name, no, Msg, Pid, Ports) end)
     end,
 
       {noreply, State};
@@ -544,9 +555,11 @@ handle_cast({cast_all_workers, {_, _, Msg}}, #state{name=Name, workers_pids=Pids
 
                      ?Debug4({cast_all_async, Msg, Pid}),
  
-                             Msg2 = new_ets_msg(Name, no, Msg, Pid),
-                               port_command(maps:get(Pid, Ports), Msg2)
- 
+                             %%Msg2 = new_ets_msg(Name, no, Msg, Pid),
+                              %%port_command(maps:get(Pid, Ports), Msg2)
+
+ 	                   spawn_link(fun() -> ok=new_ets_msg(Name, no, Msg, Pid, Ports) end)
+
                          end,
                      maps:keys(List)),
 
@@ -610,6 +623,8 @@ handle_cast({unsubscribe, S}, #state{name=Name}=State) ->
 handle_cast({change_limit, N}, #state{workers_pids=Pids}=State) ->
 
     Cr=length(maps:keys(Pids)),
+
+     ?Debug44({x_change_limit, N, Cr}),
      
      case Cr < N of
          true -> 
@@ -679,9 +694,16 @@ handle_info(clean_ets, #state{name=Name}=State) ->
     {noreply, State};
 
 
+handle_info({'EXIT', _Pid, normal}, State) ->
+     {noreply, State};
+
+handle_info({'EXIT', _Pid, _Reason}, State) ->
+    ?Debug4({exit, shutwon}),
+        {stop, error, State};
+
 
 handle_info(_Info, State) ->
-	{noreply, State}.
+     {noreply, State}.
 
 
 
@@ -693,7 +715,7 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 
-new_ets_msg(Name, From, Msg, P0) ->
+new_ets_msg(Name, From, Msg, P0, Ports) ->
 
      Ref={node(), self(), os:timestamp()},
 
@@ -727,8 +749,10 @@ new_ets_msg(Name, From, Msg, P0) ->
                                     Msg]),
 
  	  ppool_worker:set_status_worker(Name, P0, inc),
+
+	   port_command(maps:get(P0, Ports), Msg2),
         
-          Msg2.
+          ok.
 
 
 
@@ -747,11 +771,4 @@ split(A, I, _) when I > length(A) ->
 split(A, I, R) when I > 0 ->
     [H| T] = A,
         split(T, I-1, [H|R]).
-
-
-
-
-
-
-
 
