@@ -259,7 +259,7 @@ def decrease_ppools(p, pstats, m_nodes, pflows):
                 i[2] = 3
                 log("..too big : {} set {}".format(i[0], i[2]))
 
-            if int(i[1] + i[2]) > 5:
+            if int(i[1] + i[2]) > 5 and i[2] > 0:
                 log("..max 5 proc limit : {}".format(k))
                 check_add_resourse(p, i[0], int(i[1] + i[2]), k, pflows, True)
 
