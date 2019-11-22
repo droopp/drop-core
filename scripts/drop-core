@@ -87,12 +87,12 @@ DROP_VIP="127.0.0.1"
 
 if [ "x" == "x$DROP_IFACE" ]
 then
-    DROP_VIP_IFACE="$(/usr/sbin/route |grep default |head -1|awk '{print $8}')"
+    DROP_VIP_IFACE="$(/sbin/route |grep default |head -1|awk '{print $8}')"
 else
     DROP_VIP_IFACE=$DROP_IFACE
 fi
 
-HOSTNAME="$(/usr/sbin/ifconfig $DROP_VIP_IFACE | grep 'inet '| awk '{ print $2}')"
+HOSTNAME="$(/sbin/ifconfig $DROP_VIP_IFACE | grep 'inet '| awk '{ print $2}')"
 HOSTNAME0=`env hostname -f`
 
 IS_SHORT="$(echo $HOSTNAME|grep '\.'|wc -l)"
@@ -158,10 +158,10 @@ stop_s() {
     if [ "$count" -eq "0" ]; then
         # core is down
 
-        iis=$(/usr/sbin/ifconfig |grep $SHARX_VIP_IFACE:0 |wc -l)
+        iis=$(/sbin/ifconfig |grep $SHARX_VIP_IFACE:0 |wc -l)
 
         if [[ "$iis" -ne "0" && "none" != "$SHARX_VIP_STRGY" ]]; then
-            sudo /usr/sbin/ifconfig $SHARX_VIP_IFACE:0 down
+            sudo /sbin/ifconfig $SHARX_VIP_IFACE:0 down
         fi
 
         # clear state
