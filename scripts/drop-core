@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 set -e
 
@@ -241,9 +241,11 @@ start() {
         -env DROP_VIP ${DROP_VIP} \
         -env DROP_VIP_IFACE ${DROP_VIP_IFACE} \
         -noinput \
+        -noshell \
         -s main
 
         # -noinput
+        # -noshell
         # -heart \
         # -env HEART_BEAT_TIMEOUT ${HEART_BEAT_TIMEOUT} \
         # -env HEART_COMMAND ${HEART_COMMAND} \
