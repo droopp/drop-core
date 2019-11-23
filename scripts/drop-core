@@ -158,14 +158,14 @@ stop_s() {
     if [ "$count" -eq "0" ]; then
         # core is down
 
-        iis=$(/sbin/ifconfig |grep $SHARX_VIP_IFACE:0 |wc -l)
+        iis=$(/sbin/ifconfig |grep $DROP_VIP_IFACE:0 |wc -l)
 
-        if [[ "$iis" -ne "0" && "none" != "$SHARX_VIP_STRGY" ]]; then
-            sudo /sbin/ifconfig $SHARX_VIP_IFACE:0 down
+        if [[ "$iis" -ne "0" && "none" != "$DROP_VIP_STRGY" ]]; then
+            sudo /sbin/ifconfig $DROP_VIP_IFACE:0 down
         fi
 
         # clear state
-        /usr/bin/sqlite3 $SHARX_VAR_DIR/db/node_collector.db "UPDATE node_world SET active = 0 WHERE date < DATETIME('NOW', '-1 minutes');"
+        /usr/bin/sqlite3 $DROP_VAR_DIR/db/node_collector.db "UPDATE node_world SET active = 0 WHERE date < DATETIME('NOW', '-1 minutes');"
 
     else
 
