@@ -23,5 +23,11 @@ chown -R drop-core:drop-core /etc/ssl/drop
 rm -f /usr/bin/drop-core
 ln -s /opt/drop-core/scripts/drop-core /usr/bin/drop-core
 
+if [ ! -f /etc/drop-env ]; then
+    echo "" > /etc/drop-env
+    chown drop-core:drop-core /etc/drop-env
+fi
+
+
 ## start service
 # systemctl restart drop-core

@@ -27,10 +27,6 @@ banner() {
 
 source ~/.bashrc
 
-if [ ! -f /etc/drop-env ]; then
-    echo "" > /etc/drop-env
-fi
-
 export IS_MCAST="1"
 
 if [ "x" == "x$DROP_STRATEGY" ] 
