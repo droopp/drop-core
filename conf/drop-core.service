@@ -8,6 +8,8 @@ Type=simple
 User=drop-core
 Group=drop-core
 
+EnvironmentFile=/etc/drop-env
+
 ExecStart=/opt/drop-core/scripts/drop-core start
 ExecStop=
 KillMode=process
