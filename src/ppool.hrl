@@ -25,6 +25,12 @@
     -define(Debug44(M), void).
 -endif.
 
+-ifdef(debug55).
+    -define(Debug55(M), io:format("~p~n", [M])).
+-else.
+    -define(Debug55(M), void).
+-endif.
+
 
 
 -define(ERROR_TIMEOUT, 500).

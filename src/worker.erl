@@ -211,11 +211,16 @@ handle_cast(_Msg, State) ->
 handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
 
     ?Debug({open_port, Cmd}),
-    Pid = self(),
-     {Md, F} = Cmd,
 
-      Port = spawn_link(fun() -> Md:F(Pid) end),
-    
+     Pid = self(),
+
+      case Cmd of
+       {Md, F} ->
+           Port = spawn_link(fun() -> Md:F(Pid) end);
+       {Md, F , A} ->
+           Port = spawn_link(fun() -> Md:F(Pid, A) end)
+       end,
+
        ?Debug({registering, self()}),
         ppool_worker:register_worker(M, self()),
 
@@ -261,15 +266,18 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 
-
 collect_response(Port, T) ->
    receive
         {Port, {data, Data}} ->
-            {ok, Data};
+            {ok, Data}
 
-         Err ->
-            error_logger:error_msg("worker call ~p~n",[Err]),
-            {error, 1, Err}
+         %% {_, {msg, _, Msg}} ->
+         %%   error_logger:warning_msg("warning worker call ~p~n",[Msg]),
+         %%    collect_response(Port, T);
+
+         %% Err ->
+         %%  error_logger:error_msg("worker call ~p~n",[Err]),
+         %%   {error, 1, Err}
 
     after
          T ->
