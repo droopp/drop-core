@@ -71,19 +71,32 @@ def main(p, node, t, vip, vip_iface):
 
         #  set clester network balancer
         #  get main node floating ip
+
         log("get main node..")
         m_nodes, m_cnt = get_active_nodes(p)
 
         log("get active nodes: {}".format(m_nodes))
 
-        if len(m_nodes) == 0:
+        if len(m_nodes) == 0 and m_cnt == -1:
+            log("WARN: Split brain occured!!!")
             m_node = None
+
+        elif len(m_nodes) == 0:
+            m_node = None
+
         else:
             m_node = m_nodes[0]
             m_cnt = m_cnt/len(m_nodes)
 
         if m_node != node:
             log("i'm not main node {} ..set rserv".format(m_node))
+
+            if m_node is None:
+                # start and wait message from world 15 secs
+                for i in range(5):
+                    log("....wait messages from world...")
+                    send("ok")
+                    time.sleep(int(t))
 
             # not set or set to main
             if _is_vip_set == 0 or _is_vip_set == 1:
@@ -328,6 +341,7 @@ def get_active_nodes(p):
                           on s.node = l.node
                          where s.date > DATETIME('NOW', '-15 seconds')
                             and ifnull(l.active, 1) = 1
+                            and s.node NOT like '%@127.0.0.1'
                          group by s.node
                          order by s.node desc
                          -- LIMIT 1
@@ -339,14 +353,35 @@ def get_active_nodes(p):
         data.append(row[0])
         cnt += row[1]
 
+    # check if split from cluster
+
+    cur.execute("""select count(1)
+                     from node_world s
+                      where group0 = (select group0 from node_world
+                                       where uuid = '{}'
+                                        and group0 != 'None'
+                                  )
+
+                """.format(os.environ["NODE_NAME"]))
+
+    gr_count = cur.fetchone()[0]
+
+    if len(data) < int(gr_count/2) + 1:
+        return [], -1
+
     # check if already vip exists
 
     cur.execute("""select s.node
                      from node_world s
-                   where s.group0 != 'None'
+                      where group0 = (select group0 from node_world
+                                       where uuid = '{}'
+                                        and group0 != 'None'
+                                  )
                      and s.detail like '%is_vip\": 1%'
                      and s.active = 1
-                """)
+                     and s.node NOT like '%@127.0.0.1'
+                   order by s.node desc
+                """.format(os.environ["NODE_NAME"]))
 
     for row in cur:
         if row[0] in data:
