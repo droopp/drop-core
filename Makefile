@@ -3,6 +3,7 @@ PROJECT_DESCRIPTION = Core App /Distribued Reliable Operation Platform
 PROJECT_VERSION = 0.1.0
 
 ERLC_OPTS= -Dtrace
+EUNIT_ERL_OPTS = -kernel start_pg true
 
 include erlang.mk
 
