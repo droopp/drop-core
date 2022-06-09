@@ -120,16 +120,13 @@ handle_cast({dmsga, R, Msg}, #state{master=N}=State) ->
    ?Trace({start_distrib_dmsga, R, Msg}),
    ?Trace({pg_group, pg:get_members(N)}),
 
-    case pg:get_members(N) of
-        Arr ->
-           ?Trace({remote, Arr}),
-            [ppool_worker:cast_worker(X, R, Msg)||X<-Arr]
-     end,
+     Arr = pg:get_members(N),
+      ?Trace({remote, Arr}),
+       [ppool_worker:cast_worker(X, R, Msg)||X<-Arr],
 
-     ?Trace({noreply_send, self()}),
+         ?Trace({noreply_send, self()}),
  
-        {noreply, State};
-
+           {noreply, State};
 
 
 handle_cast({dmsg, R, Msg}, #state{master=N}=State) ->
@@ -168,8 +165,7 @@ handle_cast({stream_msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd,
  
        case process_stream_ets_msg(N, E, Port, Ref, Msg, T, os:timestamp()) of
            {error, timeout} -> {stop, port_timeout, State};
-           {error, 1, _} -> {stop, error, State};
-            _ -> {noreply, State}
+           {error, 1, _} -> {stop, error, State}
 
        end;
 
@@ -204,11 +200,11 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
 
      Pid = self(),
 
-      case Cmd of
+     {Fn, Port} = case Cmd of
        {Md, F} ->
-           Port = spawn_link(fun() -> Md:F(Pid) end);
+          {F, spawn_link(fun() -> Md:F(Pid) end)};
        {Md, F , A} ->
-           Port = spawn_link(fun() -> Md:F(Pid, A) end)
+          {F, spawn_link(fun() -> Md:F(Pid, A) end)}
        end,
 
        ?Trace({registering, self()}),
@@ -216,7 +212,7 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
 
         %% if stream type do start
 
-        case string:find(erlang:atom_to_list(F), "_stream") of
+        case string:find(erlang:atom_to_list(Fn), "_stream") of
             nomatch -> ok;
             _ -> ppool_worker:stream_all_workers(M, <<"start\n">>)
         end,
@@ -255,7 +251,10 @@ code_change(_OldVsn, State, _Extra) ->
 collect_response(Port, T) ->
    receive
         {Port, {data, Data}} ->
-            {ok, Data}
+            {ok, Data};
+
+        {'EXIT', _From, Reason} ->
+             {error, 1, Reason }
 
     after
          T ->
@@ -304,7 +303,7 @@ process_ets_msg(N, E, Port, Ref, Msg, T) ->
 
                 true=ets:update_element(N, Ref, [
                                  {#worker_stat.status, error},
-                                 {#worker_stat.result, Status},
+                                 {#worker_stat.result, Err},
                                  {#worker_stat.time_end, os:timestamp()}
                                 ]),
 
@@ -360,7 +359,7 @@ process_stream_ets_msg(N, E, Port, Ref, Msg, T, LastTime) ->
 
                 true=ets:update_element(N, Ref, [
                                  {#worker_stat.status, error},
-                                 {#worker_stat.result, Status},
+                                 {#worker_stat.result, Err},
                                  {#worker_stat.time_end, os:timestamp()}
                                 ]),
 

@@ -78,7 +78,6 @@ init([Name, Limit, MFA]) ->
                           {write_concurrency, true}
                          ]),
 
-    pg:create(Name),
     pg:join(Name, self()),
 
      erlang:send_after(?INTERVAL, self(), clean_ets),
@@ -474,7 +473,7 @@ handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids,
 
    Free = maps:filter(fun(_K, V) -> V>=2 end, Pids),
 
-    case map_size(Free) of
+   _ = case map_size(Free) of
         0 -> ok;
         _ ->
             List = maps:to_list(Free),
@@ -696,11 +695,11 @@ new_ets_msg(Name, From, Msg, P0, Ports) ->
                                      time_start=os:timestamp()}
                         ),
 
-        case From of
+        FromS = case From of
             no ->
-                FromS = <<"no">>;
+                <<"no">>;
             F ->
-                FromS = erlang:pid_to_list(F)
+                erlang:pid_to_list(F)
         end,
 
           Msg2=erlang:list_to_binary([FromS , ":",

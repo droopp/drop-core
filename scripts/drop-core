@@ -201,6 +201,7 @@ start() {
         -sasl error_logger_mf_dir \"${DROP_LOG_DIR}\" \
         -sasl error_logger_mf_maxbytes ${DROP_LOGGER_MF_BYTES} \
         -sasl error_logger_mf_maxfiles ${DROP_LOGGER_MF_FILES} \
+        -kernel start_pg true \
         -pa ${DROP_EBIN_ROOT} \
         -env NODE_NAME ${NODE_NAME} \
         -env HOSTNAME0 ${HOSTNAME0} \

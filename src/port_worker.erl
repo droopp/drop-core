@@ -118,12 +118,9 @@ handle_cast({dmsga, R, Msg}, #state{master=N}=State) ->
    ?Trace({start_distrib_dmsga, R, Msg}),
    ?Trace({pg_group, pg:get_members(N)}),
 
-    case pg:get_members(N) of
-        Arr ->
-           ?Trace({remote, Arr}),
-            [ppool_worker:cast_worker(X, R, Msg)||X<-Arr]
-
-     end,
+   Arr = pg:get_members(N),
+   ?Trace({remote, Arr}),
+    [ppool_worker:cast_worker(X, R, Msg)||X<-Arr],
 
      ?Trace({noreply_send, self()}),
  
@@ -229,12 +226,12 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
         end,
 
          %% if async type
-         case string:find(erlang:atom_to_list(M), "_async") of 
+         Async = case string:find(erlang:atom_to_list(M), "_async") of 
             nomatch -> 
-                Async = false;
+               false;
             _ ->
-                Async = true,
-        	      gen_server:cast(self(), {async_loop})
+        	   gen_server:cast(self(), {async_loop}),
+                true
           end,
 
 	        {noreply, State#state{port=Port, async=Async}};
@@ -373,7 +370,7 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
 
 	           	  gen_event:notify(E, {msg, {ok, DRef, [Response]}}),
 
-                    case Spid of
+                  _ = case Spid of
 
                         <<"no">> ->
                             ok;

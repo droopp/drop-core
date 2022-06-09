@@ -28,10 +28,9 @@ start_link(Name) ->
 
 	{ok, Pid}=gen_event:start_link({local, EvName}),
 
-     pg:create(EvName),
-      pg:join(EvName, Pid),
+     pg:join(EvName, Pid),
 
-     {ok,Pid}.
+      {ok, Pid}.
 
 
 init([Pid, Filter, API]) ->

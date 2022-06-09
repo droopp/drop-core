@@ -7,4 +7,4 @@ ERLC_OPTS= -Dtrace
 include erlang.mk
 
 run:
-	/opt/erlang/bin/erl -pa ebin -s main
+	/opt/erlang/bin/erl -pa ebin -kernel start_pg true -s main
