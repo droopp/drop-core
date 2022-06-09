@@ -1,7 +1,0 @@
-.eunit
-*.o
-*.beam
-*.plt
-erl_crash.dump
-ebin/*.beam
-*.d

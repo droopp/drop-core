@@ -35,7 +35,6 @@ start_pool(Name, Limit, MFA) ->
 
 
 stop_pool(Name) ->
-    supervisor:terminate_child(?MODULE, Name),
-    supervisor:delete_child(?MODULE, Name).
-
+    ok=supervisor:terminate_child(?MODULE, Name),
+    ok=supervisor:delete_child(?MODULE, Name).
 

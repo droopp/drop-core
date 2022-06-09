@@ -6,7 +6,6 @@
          start_worker/2,
          register_worker/2,
          start_all_workers/2,
-         start_map_workers/2,
          stop_all_workers/1,
          stop_all_workers/2,
 
@@ -21,7 +20,6 @@
          dacast_worker/3,
          cast_worker_defer/2,
 
-         call_map_workers/2,
          call_workers/2,
          call_sync_worker/2,
 
@@ -73,7 +71,6 @@ start_link(Name, Limit, MFA) ->
 	gen_server:start_link({local, Name}, ?MODULE, [Name, Limit, MFA], []).
 
 
-
 init([Name, Limit, MFA]) ->
     Name = ets:new(Name, [set, public, named_table, 
                           {keypos, #worker_stat.ref},
@@ -81,20 +78,20 @@ init([Name, Limit, MFA]) ->
                           {write_concurrency, true}
                          ]),
 
-    pg2:create(Name),
-     pg2:join(Name, self()),
+    pg:create(Name),
+    pg:join(Name, self()),
 
      erlang:send_after(?INTERVAL, self(), clean_ets),
      erlang:send_after(?INTERVAL_NOMORE, self(), send_nomore),
 
-	Async = string:find(erlang:atom_to_list(Name), "_async") =/= nomatch,
+	  Async = string:find(erlang:atom_to_list(Name), "_async") =/= nomatch,
 
-        case Async  of
+        case Async of
           true -> process_flag(trap_exit, true);
           _ -> ok
         end,
            
-    	?Debug4({init, async, Async}),
+    	?Trace({init, async, Async}),
 
 	{ok, #state{limit=Limit, mfa=MFA, name=Name, async=Async}}.
 
@@ -102,7 +99,7 @@ init([Name, Limit, MFA]) ->
 
 register_worker(Name, Pid0) ->
    
-   ?Debug4({register, async, Pid0}),
+   ?Trace({register, async, Pid0}),
 
     case Pid0 of
        {Pid, Port} ->
@@ -116,7 +113,7 @@ register_worker(Name, Pid0) ->
 %% start/stop worker
 
 start_worker(Name, Cmd) ->
-    ?Debug44({call_start_worker, Name, Cmd}),
+    ?Trace({call_start_worker, Name, Cmd}),
     gen_server:call(Name, {start_worker, Cmd}).
 
 start_all_workers(Name, Cmd) ->
@@ -127,21 +124,9 @@ start_all_workers(Name, Cmd) ->
 
     end.
 
-start_map_workers(Name, [Cmd|T]) ->
-    case start_worker(Name, Cmd) of 
-
-       full_limit -> {ok, full_limit};
-        _ -> start_map_workers(Name, T)
-
-    end;
-
-start_map_workers(_Name, []) ->
-    ok.
-
-
-
 stop_all_workers(Name) ->
     gen_server:call(Name, {stop_all_workers, 0}).
+
 stop_all_workers(Name, C) ->
     gen_server:call(Name, {stop_all_workers, C}).
 
@@ -150,9 +135,7 @@ stop_all_workers(Name, C) ->
 %% API
 
 call_worker(Name, Msg) ->
-    %% ?Debug(Msg),
     gen_server:call(Name, {call_worker, {msg, no, Msg}}).
-
 
 call_worker(Name, Ref, Msg) ->
     gen_server:call(Name, {call_worker, {msg, Ref, Msg}}).
@@ -171,7 +154,6 @@ first_call_worker(Name, Msg) ->
 
 
 cast_worker(Name, Msg) ->
-    %% ?Debug(Msg),
     gen_server:cast(Name, {cast_worker, {msg, no, Msg}}).
 
 cast_worker(Name, Ref, Msg) ->
@@ -184,26 +166,16 @@ dcast_worker(Name, Ref, Msg) ->
 dacast_worker(Name, Ref, Msg) ->
     gen_server:cast(Name, {cast_worker, {dmsga, Ref, Msg}}).
 
+
 cast_worker_defer(Name, Msg) ->
     gen_server:call(Name, {cast_worker_defer, Msg}).
 
-
-call_map_workers(Name, Msg) ->
-    lists:map(fun(M) -> call_worker(Name, no, M) end, 
-                                   Msg).
 
 call_workers(Name, Msg) ->
     gen_server:call(Name, {call_workers, {msg, no, Msg}}).
 
 call_sync_worker(Name, Msg) ->
    gen_server:call(Name, {call_worker, {sync_msg, no, Msg}}).
-
-%% call_workers(Name, Msg, Acc) ->
-%%  case call_worker(Name, Msg) of
-%%    {ok, []} -> {ok, Acc};
-%%    {ok, R} -> call_workers(Name, Msg, [R|Acc])
-%% 
-%% end.
 
 
 cast_all_workers(Name, Msg) ->
@@ -246,24 +218,20 @@ add_nomore_info(Name) ->
 %% callbacks
 
 handle_call({start_worker, Cmd}, _From, #state{name=Name, 
-                                               limit=Limit}=State ) 
+                                               limit=Limit}=State) 
   when Limit > 0 ->
 
     NewLimit = Limit - 1,
-    ?Debug44({x_call_start_worker_limit, Limit, NewLimit}),
+    ?Trace({call_start_worker_limit, Limit, NewLimit}),
  
          {ok, Pid} = supervisor:start_child(
                        list_to_atom(atom_to_list(Name)++"_sup"),
                        [Cmd]),
 
                {reply, Pid, State#state{limit=NewLimit} };
- 
-
 
 handle_call({start_worker, _}, _From, State) ->
     {reply, full_limit, State};
-
-
 
 
 handle_call({stop_all_workers, C}, _From, 
@@ -272,13 +240,13 @@ handle_call({stop_all_workers, C}, _From,
 
     Cr = length(maps:keys(Pids)),
 
-    ?Debug4({stop_all_workers, Cr, C}),
+    ?Trace({stop_all_workers, Cr, C}),
 
     case C > 0 andalso Cr - C > 0 of
          true -> 
 
            Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
-            ?Debug4({stop, split(maps:keys(Free), Cr-C)}),
+            ?Trace({stop, split(maps:keys(Free), Cr-C)}),
 
              lists:foreach(fun(Pid) ->
                                    gen_server:cast(Pid, {msg, no, stop}) end, 
@@ -291,23 +259,21 @@ handle_call({stop_all_workers, C}, _From,
 	   {reply, ok, State};
 
 
-
 handle_call({stop_all_workers, C}, _From, 
-                       #state{name=Name, workers_pids=Pids, ports_pids=Ports, async=Async}=State)
+            #state{name=Name, workers_pids=Pids, ports_pids=Ports, async=Async}=State)
+
   when Async =:= true ->
 
     Cr = length(maps:keys(Pids)),
 
-    ?Debug4({stop_all_workers_async, Cr, C}),
+    ?Trace({stop_all_workers_async, Cr, C}),
 
     case C > 0 andalso Cr - C > 0 of
          true -> 
 
            Free=maps:filter(fun(_K, V) -> V=:=2 end ,Pids),
-            ?Debug4({stop_b_split, maps:keys(Free), Cr-C}),
 
-
-            ?Debug4({stop, split(maps:keys(Free), Cr-C)}),
+            ?Trace({stop, split(maps:keys(Free), Cr-C)}),
 
              lists:foreach(fun(Pid) ->
 				   ppool_worker:set_status_worker(Name, Pid, 0),
@@ -323,10 +289,15 @@ handle_call({stop_all_workers, C}, _From,
 	   {reply, ok, State};
 
 
+handle_call({register, {Pid, Port}}, _From, 
+             #state{workers_pids=Pids, ports_pids=Ports}=State) ->
 
-handle_call({register, {Pid, Port}}, _From, #state{workers_pids=Pids, ports_pids=Ports}=State) ->
     erlang:monitor(process, Pid),
-        {reply, ok, State#state{workers_pids=maps:put(Pid, 0, Pids), ports_pids=maps:put(Pid, Port, Ports) } };
+
+     {reply, ok, 
+       State#state{workers_pids=maps:put(Pid, 0, Pids), 
+                   ports_pids=maps:put(Pid, Port, Ports)}};
+
 
 handle_call({call_worker, _Msg}, _From, #state{async=Async}=State) 
   when Async =:= true ->
@@ -337,7 +308,7 @@ handle_call({call_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=St
     
     Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
-    ?Debug(Free),
+    ?Trace(Free),
 
     case maps:keys(Free) of
           [] -> 
@@ -350,15 +321,16 @@ handle_call({call_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=St
 
       end;
 
+
 handle_call({first_call_worker, Msg}, _From, 
-                #state{name=Name, workers_pids=Pids}=State) ->
+            #state{name=Name, workers_pids=Pids}=State) ->
     
-    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
+    Free=maps:filter(fun(_K, V) -> V=/=2 end, Pids),
 
      case ets:first(Name) of
 
           '$end_of_table'-> 
-            ?Debug4({first_call_worker, Name, Free}),
+            ?Trace({first_call_worker, Name, Free}),
 
             case maps:keys(Free) of 
                 [] -> ok;
@@ -369,7 +341,7 @@ handle_call({first_call_worker, Msg}, _From,
               {reply, {ok, call}, State};
 
           _ -> 
-            ?Debug4({first_call_worker, already_started, Name}),
+            ?Trace({first_call_worker, already_started, Name}),
 
               {reply, {ok, []}, State}
 
@@ -383,9 +355,9 @@ handle_call({call_cast_worker, _Msg}, _From, #state{async=Async}=State)
 handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
   when Async =:= false ->
  
-    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
+    Free=maps:filter(fun(_K, V) -> V=/=2 end, Pids),
 
-    ?Debug(Free),
+    ?Trace(Free),
 
     case maps:keys(Free) of
           [] -> 
@@ -403,7 +375,7 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
                                                        async=Async, ports_pids=Ports}=State) 
   when Async =:= true ->
  
-        Free=maps:filter(fun(_K, V) -> V>=2 end ,Pids),
+        Free=maps:filter(fun(_K, V) -> V>=2 end, Pids),
 
            case map_size(Free) of
                0 ->
@@ -414,25 +386,21 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
                   List = maps:to_list(Free),
                   [{P0, _}|_] = lists:keysort(2, List),
 
-		     ?Debug4({cast_worker_defer2, List, P0, Ports, maps:get(P0,Ports)}),
-
-                      %%Msg2 = new_ets_msg(Name, From, Msg, P0),
-                       %%port_command(maps:get(P0, Ports), Msg2),
+		           ?Trace({cast_worker_defer, List, P0, Ports, maps:get(P0,Ports)}),
 
 	                spawn_link(fun() -> ok=new_ets_msg(Name, From, Msg, P0, Ports) end), 
 
                      {reply, {ok, ok}, State}
-
            end;
 
 
-
-handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, async=Async}=State) 
+handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, 
+                                                       async=Async}=State) 
     when Async =:=false ->
     
     Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
-    ?Debug4({cast_worker_defer, From, self(), Msg, Free}),
+    ?Trace({cast_worker_defer, From, self(), Msg, Free}),
 
     case maps:keys(Free) of
           [] -> 
@@ -459,6 +427,7 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
       end;
 
+
 handle_call({call_workers, _Msg}, _From, #state{async=Async}=State) 
   when Async =:= true ->
      {reply, {ok, []}, State};
@@ -468,7 +437,7 @@ handle_call({call_workers, Msg}, _From, #state{workers_pids=Pids, async=Async}=S
  
     Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
-    ?Debug(Free),
+    ?Trace(Free),
 
         R=lists:map(fun(P) ->
                         gen_server:call(P, Msg)
@@ -478,12 +447,11 @@ handle_call({call_workers, Msg}, _From, #state{workers_pids=Pids, async=Async}=S
             {reply, {ok, R}, State};
 
 
-
 handle_call({get_result_worker, Msg}, _From, #state{name=Name}=State) ->
 
-    ?Debug({Name, Msg}),
-        
-    R = ets:select(Name, 
+    ?Trace({Name, Msg}),
+
+     R = ets:select(Name, 
                    ets:fun2ms(fun(N=#worker_stat{ref=P}) 
                                     when P=:=Msg -> N 
                               end)
@@ -496,16 +464,15 @@ handle_call(_Request, _From, State) ->
 	{reply, ignored, State}.
 
 
-
 handle_cast({add_nomore_info},  #state{nomore=C}=State) ->
-    {noreply, State#state{nomore=C+1}};
+    {noreply, State#state{nomore=C + 1}};
 
 
 handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids, 
-                                                 async=Async, ports_pids=Ports}=State) 
-  when Async =:= true ->
+                                               async=Async, ports_pids=Ports}=State) 
+  when Async=:=true ->
 
-   Free = maps:filter(fun(_K, V) -> V>=2 end ,Pids),
+   Free = maps:filter(fun(_K, V) -> V>=2 end, Pids),
 
     case map_size(Free) of
         0 -> ok;
@@ -513,19 +480,16 @@ handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids,
             List = maps:to_list(Free),
             [{Pid, _}|_] = lists:keysort(2, List),
 
-            ?Debug({cast_worker_random, List, Pid}),
-
-               %%Msg2 = new_ets_msg(Name, no, Msg, Pid),
-               %%port_command(maps:get(Pid, Ports), Msg2)
-
+            ?Trace({cast_worker_random, List, Pid}),
                spawn_link(fun() -> ok=new_ets_msg(Name, no, Msg, Pid, Ports) end)
-    end,
+     end,
 
       {noreply, State};
 
  
 handle_cast({cast_worker, Msg},  #state{workers_pids=Pids, async=Async}=State) 
-   when Async =:=false ->
+   when Async=:=false ->
+
    %% get random pid
    List=maps:keys(Pids),
 
@@ -536,9 +500,9 @@ handle_cast({cast_worker, Msg},  #state{workers_pids=Pids, async=Async}=State)
 
             Pid=lists:nth(Index, List),
 
-            ?Debug({cast_worker_random, Pid}),
+            ?Trace({cast_worker_random, Pid}),
 
-                gen_server:cast(Pid, Msg)
+             gen_server:cast(Pid, Msg)
     end,
 
       {noreply, State};
@@ -550,13 +514,11 @@ handle_cast({cast_all_workers, {_, _, Msg}}, #state{name=Name, workers_pids=Pids
 
    List=maps:filter(fun(_K, V) -> V>=2 end ,Pids),
 
-    ?Debug(List),
+    ?Trace(List),
+
         lists:foreach(fun(Pid) ->
 
-                     ?Debug4({cast_all_async, Msg, Pid}),
- 
-                             %%Msg2 = new_ets_msg(Name, no, Msg, Pid),
-                              %%port_command(maps:get(Pid, Ports), Msg2)
+                     ?Trace({cast_all_async, Msg, Pid}),
 
  	                   spawn_link(fun() -> ok=new_ets_msg(Name, no, Msg, Pid, Ports) end)
 
@@ -569,7 +531,8 @@ handle_cast({cast_all_workers, {_, _, Msg}}, #state{name=Name, workers_pids=Pids
 handle_cast({cast_all_workers, Msg},  #state{workers_pids=Pids, async=Async}=State)
    when Async =:=false ->
 
-    ?Debug(Pids),
+    ?Trace(Pids),
+
         lists:foreach(fun(Pid) -> gen_server:cast(Pid, Msg) end,
                                    maps:keys(Pids)),
 
@@ -579,29 +542,30 @@ handle_cast({cast_all_workers, Msg},  #state{workers_pids=Pids, async=Async}=Sta
 handle_cast({set_status_worker, Pid, S},
             #state{workers_pids=Pids}=State) ->
 
-            Cnt = maps:get(Pid, Pids),
+            Cnt=maps:get(Pid, Pids),
             
             case S of
               inc ->
-                 ?Debug4({set_status_worker_inc, Pid, Cnt, S}),
+                 ?Trace({set_status_worker_inc, Pid, Cnt, S}),
  
                  {noreply, State#state{workers_pids=maps:update(Pid, Cnt+1, Pids)}};
+
               decr ->
-                 ?Debug4({set_status_worker_decr, Pid, Cnt, S}),
+                 ?Trace({set_status_worker_decr, Pid, Cnt, S}),
 
                   {noreply, State#state{workers_pids=maps:update(Pid, Cnt-1, Pids)}};
+
               N ->
-           	  {noreply, State#state{workers_pids=maps:update(Pid, N, Pids)}}
+           	      {noreply, State#state{workers_pids=maps:update(Pid, N, Pids)}}
 
             end;
 
 
 handle_cast({subscribe, S, Filter, API}, #state{name=Name}=State) ->
 
-
     Ev = list_to_atom(atom_to_list(Name)++"_ev"),
 
-    case lists:member({ppool_ev, S}, gen_event:which_handlers(Ev)) of
+     case lists:member({ppool_ev, S}, gen_event:which_handlers(Ev)) of
         false ->
                 gen_event:add_sup_handler(Ev, {ppool_ev, S}, 
                                           [S, Filter, API]);
@@ -624,7 +588,7 @@ handle_cast({change_limit, N}, #state{workers_pids=Pids}=State) ->
 
     Cr=length(maps:keys(Pids)),
 
-     ?Debug44({x_change_limit, N, Cr}),
+     ?Trace({change_limit, N, Cr}),
      
      case Cr < N of
          true -> 
@@ -634,18 +598,15 @@ handle_cast({change_limit, N}, #state{workers_pids=Pids}=State) ->
     end;
 
 
-
 handle_cast(_Msg, State) ->
 	{noreply, State}.
-
-
 
 
 handle_info({'DOWN', _MonitorRef, process, Pid, _Info}, 
             #state{workers_pids=Pids, ports_pids=Ports}=State) ->
 
-    	{noreply, State#state{workers_pids=maps:remove(Pid, Pids), ports_pids=maps:remove(Pid, Ports)}};
-
+    	{noreply, State#state{workers_pids=maps:remove(Pid, Pids), 
+                              ports_pids=maps:remove(Pid, Ports)}};
 
 
 handle_info(send_nomore, #state{name=Name, nomore=C}=State) ->
@@ -662,7 +623,7 @@ handle_info(send_nomore, #state{name=Name, nomore=C}=State) ->
               lists:foreach(fun(Pidd) -> 
                                     ppool_worker:cast_worker(Pidd, Msg2)   
                             end,    
-                           pg2:get_members(?NO_MORE_PPOOL));
+                           pg:get_members(?NO_MORE_PPOOL));
           %%%%%%
         false ->
               ok
@@ -687,24 +648,24 @@ handle_info(clean_ets, #state{name=Name}=State) ->
                               end)
                   ),
 
-    [ets:delete(Name, K#worker_stat.ref) || K <- R],
+       [ets:delete(Name, K#worker_stat.ref) || K <- R],
 
-    erlang:send_after(?INTERVAL, self(), clean_ets),
+         erlang:send_after(?INTERVAL, self(), clean_ets),
 
-    {noreply, State};
+           {noreply, State};
+
 
 
 handle_info({'EXIT', _Pid, normal}, State) ->
      {noreply, State};
 
 handle_info({'EXIT', _Pid, _Reason}, State) ->
-    ?Debug4({exit, shutwon}),
+    ?Trace({exit, shutwon}),
         {stop, error, State};
 
 
 handle_info(_Info, State) ->
      {noreply, State}.
-
 
 
 terminate(_Reason, _State) ->
@@ -714,22 +675,20 @@ code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
 
-
 new_ets_msg(Name, From, Msg, P0, Ports) ->
 
      Ref={node(), self(), os:timestamp()},
 
-      {X1, X2, {X3, X4, X5}} = Ref,
+     {X1, X2, {X3, X4, X5}} = Ref,
 
-       Sref = erlang:list_to_binary([erlang:atom_to_list(X1), ":", 
+     Sref = erlang:list_to_binary([erlang:atom_to_list(X1), ":", 
                                     erlang:pid_to_list(X2) , ":",
                                     erlang:integer_to_binary(X3), ":",
                                     erlang:integer_to_binary(X4), ":",
                                     erlang:integer_to_binary(X5)
                                    ]),
 
-      ?Debug4({new_async_msg_defer, Ref, Sref}),
- 
+      ?Trace({new_async_msg_defer, Ref, Sref}),
 
        true=ets:insert(Name, #worker_stat{ref=Ref, 
                                      ref_from=no, pid=self(),cmd=Name,
@@ -744,16 +703,15 @@ new_ets_msg(Name, From, Msg, P0, Ports) ->
                 FromS = erlang:pid_to_list(F)
         end,
 
-        Msg2=erlang:list_to_binary([FromS , ":",
-                                    Sref , "::",
-                                    Msg]),
+          Msg2=erlang:list_to_binary([FromS , ":",
+                                      Sref , "::",
+                                      Msg]),
 
- 	  ppool_worker:set_status_worker(Name, P0, inc),
+ 	        ppool_worker:set_status_worker(Name, P0, inc),
 
-	   port_command(maps:get(P0, Ports), Msg2),
+	         port_command(maps:get(P0, Ports), Msg2),
         
-          ok.
-
+              ok.
 
 
 split([], _I) ->

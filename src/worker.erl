@@ -14,7 +14,6 @@
 
 -include("ppool.hrl").
 
-
 -record(state, {
           master,
           ev,
@@ -32,7 +31,8 @@ start_link(N, Cmd) ->
 %% gen_server.
 
 init({N, Cmd}) ->
-    ?Debug({N, Cmd,  self()}),
+
+    ?Trace({N, Cmd,  self()}),
      {C, T}=Cmd,
 
       process_flag(trap_exit, true),
@@ -46,8 +46,9 @@ init({N, Cmd}) ->
 handle_call({msg, R, Msg}, From, #state{master=N, ev=E, cmd=Cmd, timeout=T,
                                         port=Port}=State) ->
 
-    ?Debug(Msg),
-    Ref = new_ets_msg(N, Cmd, R, Msg),
+    ?Trace(Msg),
+     Ref = new_ets_msg(N, Cmd, R, Msg),
+
       gen_server:reply(From, Ref),
  
        case process_ets_msg(N, E, Port, Ref, Msg, T) of
@@ -56,7 +57,6 @@ handle_call({msg, R, Msg}, From, #state{master=N, ev=E, cmd=Cmd, timeout=T,
 
             _ -> {noreply, State}
        end;
-
 
 
 handle_call({sync_msg, R, Msg}, _From, #state{master=N, ev=E,
@@ -77,17 +77,16 @@ handle_call({sync_msg, R, Msg}, _From, #state{master=N, ev=E,
         end;
 
 
-
 handle_call(stop, From, State) ->
-    ?Debug({stop, self()}),
-    gen_server:reply(From, ok),
-     {stop, normal, State};
+
+    ?Trace({stop, self()}),
+     gen_server:reply(From, ok),
+
+       {stop, normal, State};
 
 
 handle_call(_Request, _From, State) ->
 	{reply, ignored, State}.
-
-
 
 
 handle_cast({msg, _, restart}, State) ->
@@ -103,8 +102,6 @@ handle_cast({msg, _, stop}, State) ->
     end;  
 
 
-
-
 handle_cast({msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd, 
                                   timeout=T, port=Port}=State) ->
 
@@ -112,9 +109,7 @@ handle_cast({msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd,
  
        case process_ets_msg(N, E, Port, Ref, Msg, T) of
            {error, timeout} -> {stop, port_timeout, State};
-            {error, 1, _} -> {stop, error, State};
-
-
+           {error, 1, _} -> {stop, error, State};
             _ -> {noreply, State}
 
        end;
@@ -122,16 +117,16 @@ handle_cast({msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd,
 
 handle_cast({dmsga, R, Msg}, #state{master=N}=State) ->
 
-   ?Debug1({start_distrib_dmsga, R, Msg}),
-    ?Debug1({pg_group_a, pg2:get_members(N)}),
+   ?Trace({start_distrib_dmsga, R, Msg}),
+   ?Trace({pg_group, pg:get_members(N)}),
 
-    case pg2:get_members(N) of
+    case pg:get_members(N) of
         Arr ->
-           ?Debug1({remote_a, Arr}),
+           ?Trace({remote, Arr}),
             [ppool_worker:cast_worker(X, R, Msg)||X<-Arr]
+     end,
 
-    end,
-     ?Debug1({noreply_send, self()}),
+     ?Trace({noreply_send, self()}),
  
         {noreply, State};
 
@@ -139,30 +134,29 @@ handle_cast({dmsga, R, Msg}, #state{master=N}=State) ->
 
 handle_cast({dmsg, R, Msg}, #state{master=N}=State) ->
 
-   ?Debug1({start_distrib_dmsg, R, Msg}),
-    ?Debug1({pg_group, pg2:get_members(N)}),
+   ?Trace({start_distrib_dmsg, R, Msg}),
+   ?Trace({pg_group, pg:get_members(N)}),
 
-    case pg2:get_members(N) of
+    case pg:get_members(N) of
         
         [Ms] -> %% local 
-           ?Debug1({local, Ms}),
+           ?Trace({local, Ms}),
             ppool_worker:cast_worker(Ms, R, Msg);
 
         Arr ->
-           ?Debug1({remote, Arr}),
+           ?Trace({remote, Arr}),
             Index = rand:uniform(length(Arr)),
-             NewP=lists:nth(Index, Arr),
+            NewP=lists:nth(Index, Arr),
 
-              ?Debug1({remote_choise_to, NewP}),
+             ?Trace({remote_choise_to, NewP}),
  
               ppool_worker:cast_worker(NewP, R, Msg)
 
-    end,
-     ?Debug1({noreply_send, self()}),
+      end,
+
+       ?Trace({noreply_send, self()}),
  
         {noreply, State};
-
-
 
 
 handle_cast({stream_msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd, 
@@ -174,20 +168,18 @@ handle_cast({stream_msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd,
  
        case process_stream_ets_msg(N, E, Port, Ref, Msg, T, os:timestamp()) of
            {error, timeout} -> {stop, port_timeout, State};
-            {error, 1, _} -> {stop, error, State};
-
-
+           {error, 1, _} -> {stop, error, State};
             _ -> {noreply, State}
 
        end;
 
 
 handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
-                                                port=Port, timeout=T}=State) ->
+                                              port=Port, timeout=T}=State) ->
 
-    ?Debug4({msg_defer, From, Msg}),
+    ?Trace({msg_defer, From, Msg}),
 
-    Ref = new_ets_msg(N, Cmd, R, Msg),
+     Ref = new_ets_msg(N, Cmd, R, Msg),
 
        case process_ets_msg(N, E, Port, Ref, Msg, T) of
            {error, timeout} -> 
@@ -202,15 +194,13 @@ handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
 
        end;
 
-
 handle_cast(_Msg, State) ->
 	{noreply, State}.
 
 
-
 handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
 
-    ?Debug({open_port, Cmd}),
+    ?Trace({open_port, Cmd}),
 
      Pid = self(),
 
@@ -221,29 +211,25 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
            Port = spawn_link(fun() -> Md:F(Pid, A) end)
        end,
 
-       ?Debug({registering, self()}),
+       ?Trace({registering, self()}),
         ppool_worker:register_worker(M, self()),
 
         %% if stream type do start
-        ?Debug({F}),
 
         case string:find(erlang:atom_to_list(F), "_stream") of
             nomatch -> ok;
             _ -> ppool_worker:stream_all_workers(M, <<"start\n">>)
         end,
 
-
-	  {noreply, State#state{port=Port}};
-
+	     {noreply, State#state{port=Port}};
 
 
 handle_info({'EXIT', Port, Reason}, #state{port=Port}=State) ->
-    ?Debug({exit, Reason}),
+    ?Trace({exit, Reason}),
         {stop, {port_terminated, Reason}, State};
 
 handle_info(_Info, State) ->
 	{noreply, State}.
-
 
 
 terminate({port_terminated, _Reason}, _State) ->
@@ -251,6 +237,7 @@ terminate({port_terminated, _Reason}, _State) ->
 
 
 terminate(_Reason, #state{port=Port}=_State) ->
+
   try exit(Port, kill) of
         _ -> ok
     catch 
@@ -265,19 +252,10 @@ code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
 
-
 collect_response(Port, T) ->
    receive
         {Port, {data, Data}} ->
             {ok, Data}
-
-         %% {_, {msg, _, Msg}} ->
-         %%   error_logger:warning_msg("warning worker call ~p~n",[Msg]),
-         %%    collect_response(Port, T);
-
-         %% Err ->
-         %%  error_logger:error_msg("worker call ~p~n",[Err]),
-         %%   {error, 1, Err}
 
     after
          T ->
@@ -288,20 +266,19 @@ collect_response(Port, T) ->
 
 new_ets_msg(N, _Cmd, R, Msg) ->
 
-    ?Debug({new_ets_msg, self()}),
+    ?Trace({new_ets_msg, self()}),
 
-    Ref={node(), self(), os:timestamp()},
+     Ref={node(), self(), os:timestamp()},
 
-     true=ets:insert(N, #worker_stat{ref=Ref, 
-                                     ref_from=R, pid=self(),cmd=N,
-                                     req=Msg, status=running,
-                                     time_start=os:timestamp()}
+      true=ets:insert(N, #worker_stat{ref=Ref, 
+                                      ref_from=R, pid=self(),cmd=N,
+                                      req=Msg, status=running,
+                                      time_start=os:timestamp()}
                         ),
 
-     ppool_worker:set_status_worker(N, self(), 2),
+       ppool_worker:set_status_worker(N, self(), 2),
 
-
-     Ref.
+        Ref.
 
 
 process_ets_msg(N, E, Port, Ref, Msg, T) ->
@@ -309,7 +286,9 @@ process_ets_msg(N, E, Port, Ref, Msg, T) ->
       Port!Msg,
 
         case collect_response(Port, T) of
+
             {ok, Response} -> 
+
                 true=ets:update_element(N, Ref, [
                                                {#worker_stat.status, ok},
                                                {#worker_stat.result, no},
@@ -322,6 +301,7 @@ process_ets_msg(N, E, Port, Ref, Msg, T) ->
                 {ok, Response};
 
             {error, Status, Err} ->
+
                 true=ets:update_element(N, Ref, [
                                  {#worker_stat.status, error},
                                  {#worker_stat.result, Status},
@@ -332,11 +312,13 @@ process_ets_msg(N, E, Port, Ref, Msg, T) ->
                       atom_to_list(node()),"::",
                       atom_to_list(N)]),
  
-                 gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
+                  gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
                    timer:sleep(?ERROR_TIMEOUT),
 
-                {error, Status, Err};
+                    {error, Status, Err};
+
             {error, timeout} ->
+
                 true=ets:update_element(N, Ref, [
                                  {#worker_stat.status, timeout},
                                  {#worker_stat.time_end, os:timestamp()}
@@ -346,19 +328,19 @@ process_ets_msg(N, E, Port, Ref, Msg, T) ->
                       atom_to_list(node()),"::",
                       atom_to_list(N)]),
 
-                  gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
-                   timer:sleep(?ERROR_TIMEOUT),
+                   gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
+                    timer:sleep(?ERROR_TIMEOUT),
 
-                 {error, timeout}
+                    {error, timeout}
         end.
-
-
 
 
 process_stream_ets_msg(N, E, Port, Ref, Msg, T, LastTime) ->
 
         case collect_response(Port, T) of
+
             {ok, Response} ->
+
                   gen_event:notify(E, {msg, {ok, Ref, Response}}),
 
                      Ref2={node(), self(), os:timestamp()},
@@ -375,6 +357,7 @@ process_stream_ets_msg(N, E, Port, Ref, Msg, T, LastTime) ->
                     process_stream_ets_msg(N, E, Port, Ref, Msg, T, FinTime);
 
             {error, Status, Err} ->
+
                 true=ets:update_element(N, Ref, [
                                  {#worker_stat.status, error},
                                  {#worker_stat.result, Status},
@@ -385,10 +368,10 @@ process_stream_ets_msg(N, E, Port, Ref, Msg, T, LastTime) ->
                       atom_to_list(node()),"::",
                       atom_to_list(N)]),
  
-                 gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
-                   timer:sleep(?ERROR_TIMEOUT),
+                   gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
+                    timer:sleep(?ERROR_TIMEOUT),
 
-                {error, Status, Err};
+                      {error, Status, Err};
 
             {error, timeout} ->
 
@@ -401,10 +384,9 @@ process_stream_ets_msg(N, E, Port, Ref, Msg, T, LastTime) ->
                       atom_to_list(node()),"::",
                       atom_to_list(N)]),
 
-                  gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
-                    timer:sleep(?ERROR_TIMEOUT),
+                   gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
+                     timer:sleep(?ERROR_TIMEOUT),
 
-                 {error, timeout}
+                       {error, timeout}
         end.
-
 

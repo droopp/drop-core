@@ -1,36 +1,34 @@
 
 
+-ifdef(trace).
+    -define(Trace(M), io:format("TRACE: ~p~n", [M])).
+-else.
+    -define(Trace(M), void).
+-endif.
+
 -ifdef(debug).
-    -define(Debug(M), io:format("~p~n", [M])).
+    -define(Debug(M), io:format("DEBUG: ~p~n", [M])).
 -else.
     -define(Debug(M), void).
 -endif.
 
-
--ifdef(debug1).
-    -define(Debug1(M), io:format("~p~n", [M])).
+-ifdef(info).
+    -define(Info(M), io:format("INFO: ~p~n", [M])).
 -else.
-    -define(Debug1(M), void).
+    -define(Info(M), void).
 -endif.
 
--ifdef(debug4).
-    -define(Debug4(M), io:format("~p~n", [M])).
+-ifdef(warn).
+    -define(Warn(M), io:format("WARN: ~p~n", [M])).
 -else.
-    -define(Debug4(M), void).
+    -define(Warn(M), void).
 -endif.
 
--ifdef(debug44).
-    -define(Debug44(M), io:format("~p~n", [M])).
+-ifdef(error).
+    -define(Error(M), io:format("ERROR: ~p~n", [M])).
 -else.
-    -define(Debug44(M), void).
+    -define(Error(M), void).
 -endif.
-
--ifdef(debug55).
-    -define(Debug55(M), io:format("~p~n", [M])).
--else.
-    -define(Debug55(M), void).
--endif.
-
 
 
 -define(ERROR_TIMEOUT, 500).

@@ -26,8 +26,8 @@ start_link() ->
 
 init([]) ->
 
-    pg2:create(?MODULE),
-     pg2:join(?MODULE, self()),
+    pg:create(?MODULE),
+     pg:join(?MODULE, self()),
 
 	{ok, #state{}}.
 
@@ -51,11 +51,11 @@ handle_call({stop_pool, Name}, _From, State) ->
 
      P = ppool_sup:stop_pool(Name),
 
-      case pg2:get_members(Name) of
+      case pg:get_members(Name) of
 
           [] ->
-                pg2:delete(Name),
-                pg2:delete(list_to_atom(atom_to_list(Name)++"_ev"));
+                pg:delete(Name),
+                pg:delete(list_to_atom(atom_to_list(Name)++"_ev"));
 
            _ -> ok
 

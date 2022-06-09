@@ -4,9 +4,9 @@ set -e
 
 banner() {
 
-    echo "                    ___           ___           ___   "
-    echo "     _____         /\  \         /\  \         /\  \  "
-    echo "    /::\  \       /::\  \       /::\  \       /::\  \ "
+    echo "                    ___           ___           ___    "
+    echo "     _____         /\  \         /\  \         /\  \   "
+    echo "    /::\  \       /::\  \       /::\  \       /::\  \  "
     echo "   /:/\:\  \     /:/\:\__\     /:/\:\  \     /:/\:\__\ "
     echo "  /:/  \:\__\   /:/ /:/  /    /:/  \:\  \   /:/ /:/  / "
     echo " /:/__/ \:|__| /:/_/:/__/___ /:/__/ \:\__\ /:/_/:/  /  "
@@ -15,27 +15,14 @@ banner() {
     echo "   \:\/:/  /     \:\~~\        \:\/:/  /     \:\  \    "
     echo "    \::/  /       \:\__\        \::/  /       \:\__\   "
     echo "     \/__/         \/__/         \/__/         \/__/   "
-    echo " "
-    echo " "
-    echo " "
-    echo "     Distribued Reliable Operations Platform           "
-    echo " "
-    echo " "
-    echo " "
+    echo "                                                       "
+    echo "                                                       "
+    echo "                                                       "
+    echo " Distribued Reliable Operations Platform               "
+    echo "                                                       "
+    echo "                                                       "
 
 }
-
-source ~/.bashrc
-
-export IS_MCAST="1"
-
-if [ "x" == "x$DROP_STRATEGY" ] 
-then
-    export DROP_STRATEGY="elastic"
-fi
-
-# DROP_VIP_STRGY
-export IS_DROP_TLS="0"
 
 ERL_HOME=/opt/erlang/bin/
 DROP_HOME="$(dirname $(realpath $0))/../"
@@ -57,6 +44,7 @@ DROP_EBIN_ROOT="${DROP_HOME}/ebin ${DROP_HOME}/apps/*/ebin ${DROP_HOME}/deps/*/e
 ERL_CRASH_DUMP="${DROP_LOG_DIR}/erl_crash.dump"
 NOTIFY_SOCKET=
 
+# add var & log dirs
 
 if [ ! -d ${DROP_LOG_DIR} ]; then
         mkdir -p "${DROP_LOG_DIR}"
@@ -66,6 +54,7 @@ if [ ! -d ${DROP_VAR_DIR} ]; then
 fi
 
 # add plugin dir
+
 if [ ! -d ${DROP_VAR_DIR}/plugins/ ]; then
         mkdir -p "${DROP_VAR_DIR}/plugins/"
 fi
@@ -74,6 +63,7 @@ if [ ! -f ${DROP_VAR_DIR}/drop-id ]; then
     uuidgen > ${DROP_VAR_DIR}/drop-id
 fi
 
+export IS_MCAST="1"
 if [ -f ${DROP_VAR_DIR}/drop-hosts ]; then
     export IS_MCAST="0"
     cat ${DROP_VAR_DIR}/drop-hosts |awk '{printf "\47%s\47.\n", $1}END{print ""}' > ${DROP_HOME}/.hosts.erlang
@@ -87,17 +77,16 @@ DROP_VIP="127.0.0.1"
 
 if [ "x" == "x$DROP_IFACE" ]
 then
-    DROP_VIP_IFACE="$(/sbin/route |grep default |head -1|awk '{print $8}')"
+    DROP_VIP_IFACE="$(/sbin/ip ro |grep default |head -1|awk '{print $5}')"
 else
     DROP_VIP_IFACE=$DROP_IFACE
 fi
 
-HOSTNAME="$(/sbin/ifconfig $DROP_VIP_IFACE | grep 'inet '| awk '{ print $2}')"
+HOSTNAME="$(/sbin/ip -f inet addr show $DROP_VIP_IFACE | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')"
 HOSTNAME0=`env hostname -f`
 
 IS_SHORT="$(echo $HOSTNAME|grep '\.'|wc -l)"
 SNAME="-sname "
-
 
 if [ "$IS_SHORT" -eq "1" ]; then
     SNAME="-name"
@@ -156,42 +145,22 @@ stop_s() {
     count=$(ps -aux|grep beam.smp|grep drop-core|grep -v grep| wc -l)
 
     if [ "$count" -eq "0" ]; then
-        # core is down
 
-        iis=$(/sbin/ifconfig |grep $DROP_VIP_IFACE:0 |wc -l)
+        # core is down
+        iis=$(/sbin/ip a |grep $DROP_VIP_IFACE:0 |wc -l)
 
         if [[ "$iis" -ne "0" && "none" != "$DROP_VIP_STRGY" ]]; then
-            sudo /sbin/ifconfig $DROP_VIP_IFACE:0 down
+            sudo /sbin/ip link set $DROP_VIP_IFACE:0 down
         fi
-
-        # clear state
-        /usr/bin/sqlite3 $DROP_VAR_DIR/db/node_collector.db "UPDATE node_world SET active = 0 WHERE date < DATETIME('NOW', '-1 minutes');"
 
     else
 
         # check network change
-
         cip=$(ps -aux|grep beam.smp|grep drop-core|grep -v grep|cut -d'@' -f 2|awk '{print $1}')
+
         if [ "$cip" != "$HOSTNAME" ]; then
             sudo systemctl restart drop-core
         fi
-
-        # check sys functions is started
-
-        declare -a arr=("node_collector"                                    
-                        "node_info_stream"
-                        "flower"
-                        "flower_sc_stream")
-                        
-        for i in "${arr[@]}"
-        do
-         cip=$(ps -aux|grep "\-drop $i$"|grep -v grep|wc -l)
-
-         if [ "$cip" == "0" ]; then
-            sudo systemctl restart drop-core
-         fi
-            
-        done      
 
     fi
                    
@@ -204,6 +173,7 @@ start() {
 
     # stop prev epmd if exist
     cepmd=$(ps -aux|grep epmd|grep -v grep |awk '{print $2}')
+
     if [ "$cepmd" != "" ]; then
         echo "stop prev epmd service..$cepmd"
         sudo kill -9 $cepmd
@@ -231,7 +201,6 @@ start() {
         -sasl error_logger_mf_dir \"${DROP_LOG_DIR}\" \
         -sasl error_logger_mf_maxbytes ${DROP_LOGGER_MF_BYTES} \
         -sasl error_logger_mf_maxfiles ${DROP_LOGGER_MF_FILES} \
-        -kernel start_pg2 true \
         -pa ${DROP_EBIN_ROOT} \
         -env NODE_NAME ${NODE_NAME} \
         -env HOSTNAME0 ${HOSTNAME0} \
@@ -246,9 +215,6 @@ start() {
 
         # -noinput
         # -noshell
-        # -heart \
-        # -env HEART_BEAT_TIMEOUT ${HEART_BEAT_TIMEOUT} \
-        # -env HEART_COMMAND ${HEART_COMMAND} \
         # -proto_dist inet_tls \
         # -ssl_dist_opt ${DROP_SSL_OPT} \
  
