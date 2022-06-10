@@ -3,12 +3,19 @@
 
 %% API.
 -export([start_link/3,
+
          start_worker/2,
+         start_worker/3,
+
          register_worker/2,
          unregister_worker/2,
+
          start_all_workers/2,
+         start_all_workers/3,
          stop_all_workers/1,
          stop_all_workers/2,
+
+         cap_workers/2,
 
          call_worker/2,
          call_worker/3,
@@ -33,10 +40,8 @@
          add_nomore_info/1,
 
          subscribe/2,
-         unsubscribe/2,
+         unsubscribe/2
 
-         change_limit/2
-         
         ]).
 
 %% gen_server.
@@ -121,23 +126,36 @@ unregister_worker(Name, {Pid, Port}) ->
 %% start/stop worker
 
 start_worker(Name, Cmd) ->
-    ?Trace({call_start_worker, Name, Cmd}),
-    gen_server:call(Name, {start_worker, Cmd}).
+    ?Trace({call_start_worker, Name, Cmd, 0}),
+    gen_server:call(Name, {start_worker, Cmd, 0}).
+
+start_worker(Name, Cmd, C) ->
+    ?Trace({call_start_worker, Name, Cmd, C}),
+    gen_server:call(Name, {start_worker, Cmd, C}).
 
 start_all_workers(Name, Cmd) ->
-    case start_worker(Name, Cmd) of 
+    case start_worker(Name, Cmd, 0) of 
 
        full_limit -> {ok, full_limit};
         _ -> start_all_workers(Name, Cmd)
 
     end.
 
+start_all_workers(Name, Cmd, C) ->
+    case start_worker(Name, Cmd, C) of 
+
+       full_limit -> {ok, full_limit};
+        _ -> start_all_workers(Name, Cmd, C)
+
+    end.
+
+
+
 stop_all_workers(Name) ->
     gen_server:call(Name, {stop_all_workers, 0}).
 
 stop_all_workers(Name, C) ->
     gen_server:call(Name, {stop_all_workers, C}).
-
 
 
 %% API
@@ -214,8 +232,8 @@ unsubscribe(Name, S) ->
     gen_server:cast(Name, {unsubscribe, S}).
 
 
-change_limit(Name, N) ->
-   gen_server:cast(Name, {change_limit, N}).
+cap_workers(Name, N) ->
+   gen_server:cast(Name, {cap_workers, N}).
 
 
 add_nomore_info(Name) ->
@@ -225,21 +243,54 @@ add_nomore_info(Name) ->
    
 %% callbacks
 
-handle_call({start_worker, Cmd}, _From, #state{name=Name, 
-                                               limit=Limit}=State) 
-  when Limit > 0 ->
+handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids,
+                                                  limit=Limit}=State) 
+  when C=:=0 ->
 
-    NewLimit = Limit - 1,
-     ?Trace({call_start_worker_limit, Limit, NewLimit}),
+   Cr = length(maps:keys(Pids)),
+
+   case Cr < Limit of
+       true ->
+
+        ?Trace({call_start_worker_limit, Limit}),
+ 
+         {ok, Pid} = supervisor:start_child(
+                       list_to_atom(atom_to_list(Name)++"_sup"),
+                       [Cmd]),
+
+               {reply, Pid, State};
+       false ->
+           {reply, full_limit, State}
+
+     end;
+
+handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids,
+                                                  limit=Limit}=State) 
+  when C >= Limit ->
+
+  NewLimit = C,
+
+   Cr = length(maps:keys(Pids)),
+
+   case Cr < NewLimit of
+       true ->
+
+        ?Trace({call_start_worker_limit, Limit, NewLimit}),
  
          {ok, Pid} = supervisor:start_child(
                        list_to_atom(atom_to_list(Name)++"_sup"),
                        [Cmd]),
 
                {reply, Pid, State#state{limit=NewLimit} };
+       false ->
+           {reply, full_limit, State}
 
-handle_call({start_worker, _}, _From, State) ->
-    {reply, full_limit, State};
+     end;
+
+handle_call({start_worker, _, C}, _From, State)
+  when C < 0 ->
+     {reply, bad_limit, State};
+
 
 
 handle_call({stop_all_workers, C}, _From, 
@@ -318,11 +369,9 @@ handle_call({register, {Pid, Port}}, _From,
 
 
 handle_call({unregister, {Pid, _Port}}, _From, 
-             #state{limit=Limit, workers_pids=Pids, ports_pids=Ports}=State) ->
+             #state{workers_pids=Pids, ports_pids=Ports}=State) ->
 
-      NewLimit=Limit+1,
-
-    	{reply, ok, State#state{limit=NewLimit, workers_pids=maps:remove(Pid, Pids), 
+    	{reply, ok, State#state{workers_pids=maps:remove(Pid, Pids), 
                                 ports_pids=maps:remove(Pid, Ports)}};
 
 
@@ -611,14 +660,14 @@ handle_cast({unsubscribe, S}, #state{name=Name}=State) ->
 
 
 
-handle_cast({change_limit, N}, #state{workers_pids=Pids}=State) ->
+handle_cast({cap_workers, N}, #state{workers_pids=Pids}=State) ->
 
     Cr=length(maps:keys(Pids)),
 
-     ?Trace({change_limit, N, Cr}),
+     ?Trace({cap_workers, N, Cr}),
      
      case Cr < N of
-         true -> 
+         true ->
              {noreply, State#state{limit=N-Cr}};
          false ->
               {noreply, State}
