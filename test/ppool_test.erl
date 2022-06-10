@@ -1,7 +1,7 @@
 -module(ppool_test).
 -include_lib("eunit/include/eunit.hrl").
 
-ppool_test_() ->
+exec_test_() ->
     {setup,
      fun() ->
         application:start(ppool)
@@ -22,15 +22,15 @@ ppool_test_() ->
         ok
 
       end,
-      ppool_create()
+      run_tests()
 
      }
     }.
 
 
-ppool_create() ->
+run_tests() ->
     [
-     {"create_port_worker_pool",
+     {"create port_worker pool",
         fun() ->
             
                 {R, _}=ppool:start_pool(ppool, {p1, 1, {port_worker, start_link, []} }),
@@ -38,7 +38,7 @@ ppool_create() ->
         end
      },
 
-     {"create_port_worker_pool again",
+     {"create port_worker pool again",
         fun() ->
 
                {error,{R,_}}=ppool:start_pool(ppool, {p1, 1, {port_worker, start_link, []} }),
@@ -58,8 +58,19 @@ ppool_create() ->
         end
      },
 
+     {"check port_worker pool limit",
+        fun() ->
+               Gr=pg:which_groups(),
+               ?debugFmt("pg members...~p~n", [Gr]),
 
-     {"delete_port_worker_pool",
+                ?assert(lists:member(p1, Gr)),
+                 ?assert(lists:member(p1_ev, Gr))
+ 
+        end
+     },
+
+
+     {"delete port_worker pool",
         fun() ->
 
                 R=ppool:stop_pool(ppool, p1),
@@ -77,7 +88,7 @@ ppool_create() ->
      },
 
 
-     {"delete_port_worker_pool again",
+     {"delete port_worker pool again",
         fun() ->
 
                 R=ppool:stop_pool(ppool, p1),

@@ -221,7 +221,7 @@ handle_call({start_worker, Cmd}, _From, #state{name=Name,
   when Limit > 0 ->
 
     NewLimit = Limit - 1,
-    ?Trace({call_start_worker_limit, Limit, NewLimit}),
+     ?Trace({call_start_worker_limit, Limit, NewLimit}),
  
          {ok, Pid} = supervisor:start_child(
                        list_to_atom(atom_to_list(Name)++"_sup"),
