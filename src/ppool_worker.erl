@@ -5,6 +5,7 @@
 -export([start_link/3,
          start_worker/2,
          register_worker/2,
+         unregister_worker/2,
          start_all_workers/2,
          stop_all_workers/1,
          stop_all_workers/2,
@@ -107,6 +108,14 @@ register_worker(Name, Pid0) ->
        Pid -> 
           gen_server:call(Name, {register, {Pid, 0}})
     end.
+
+
+
+unregister_worker(Name, {Pid, Port}) ->
+   
+   ?Trace({unregister, async, {Pid, Port}}),
+
+      gen_server:call(Name, {unregister, {Pid, Port}}).
 
 
 %% start/stop worker
@@ -241,19 +250,29 @@ handle_call({stop_all_workers, C}, _From,
 
     ?Trace({stop_all_workers, Cr, C}),
 
-    case C > 0 andalso Cr - C > 0 of
-         true -> 
-
-           Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
-            ?Trace({stop, split(maps:keys(Free), Cr-C)}),
-
+    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
+ 
+    case C=:=0 of
+        true ->
              lists:foreach(fun(Pid) ->
                                    gen_server:cast(Pid, {msg, no, stop}) end, 
-                                   split(maps:keys(Free), Cr-C)
+                                   maps:keys(Free)
                            );
-         false ->
-             ok
-     end, 
+
+        false ->
+
+            case C > 0 andalso Cr - C > 0 of
+                true -> 
+                ?Trace({stop, split(maps:keys(Free), Cr-C)}),
+                    lists:foreach(fun(Pid) ->
+                                        gen_server:cast(Pid, {msg, no, stop}) end, 
+                                        split(maps:keys(Free), Cr-C)
+                                );
+                false ->
+                    ok
+            end
+
+       end,
 
 	   {reply, ok, State};
 
@@ -296,6 +315,15 @@ handle_call({register, {Pid, Port}}, _From,
      {reply, ok, 
        State#state{workers_pids=maps:put(Pid, 0, Pids), 
                    ports_pids=maps:put(Pid, Port, Ports)}};
+
+
+handle_call({unregister, {Pid, _Port}}, _From, 
+             #state{limit=Limit, workers_pids=Pids, ports_pids=Ports}=State) ->
+
+      NewLimit=Limit+1,
+
+    	{reply, ok, State#state{limit=NewLimit, workers_pids=maps:remove(Pid, Pids), 
+                                ports_pids=maps:remove(Pid, Ports)}};
 
 
 handle_call({call_worker, _Msg}, _From, #state{async=Async}=State) 

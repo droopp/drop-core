@@ -50,7 +50,7 @@ run_tests() ->
      {"check pg state",
         fun() ->
                Gr=pg:which_groups(),
-               ?debugFmt("pg members...~p~n", [Gr]),
+               %% ?debugFmt("pg members...~p~n", [Gr]),
 
                 ?assert(lists:member(p1, Gr)),
                  ?assert(lists:member(p1_ev, Gr))
@@ -61,7 +61,7 @@ run_tests() ->
      {"check port_worker pool limit",
         fun() ->
                Gr=pg:which_groups(),
-               ?debugFmt("pg members...~p~n", [Gr]),
+               %% ?debugFmt("pg members...~p~n", [Gr]),
 
                 ?assert(lists:member(p1, Gr)),
                  ?assert(lists:member(p1_ev, Gr))

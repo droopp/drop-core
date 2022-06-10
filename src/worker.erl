@@ -92,10 +92,16 @@ handle_call(_Request, _From, State) ->
 handle_cast({msg, _, restart}, State) ->
     {stop, restart, State};
 
-handle_cast({msg, _, stop}, State) ->
+handle_cast({msg, _, stop}, #state{master=M, port=Port}=State) ->
 
-    case erlang:process_info(self(), message_queue_len) of
+    Qlen=erlang:process_info(self(), message_queue_len),
+     ?Trace({message_queue_len, Qlen}),
+
+    case Qlen of
         {_, 0} ->
+
+            ppool_worker:unregister_worker(M, {self(), Port}),
+
             {stop, normal, State};
         _ ->
             {noreply, State}
