@@ -1,70 +1,89 @@
 -module(ppool_test).
 -include_lib("eunit/include/eunit.hrl").
 
-%%-compile(export_all).
-
 ppool_test_() ->
-    {"Example test",
     {setup,
      fun() ->
-        ?debugFmt("setup", []),
-
-        application:start(drop)
+        application:start(ppool)
    
      end,
      fun(_) ->
 
-        ?debugFmt("tearDown", []),
-        application:stop(drop)
+        application:stop(ppool)
 
      end,
      {
       foreach,
       fun() ->
-
-        ?debugFmt("forEach start", []),
- 
-              io:format("start")
-
+        ok
 
       end,
       fun(_) ->
-
-        ?debugFmt("forEach stop", [])
+        ok
 
       end,
-      basic_tests()
+      ppool_create()
 
      }
-    }}.
+    }.
 
 
-basic_tests() ->
+ppool_create() ->
     [
-     {"start_worker",
+     {"create_port_worker_pool",
         fun() ->
-        ?debugFmt("func test", []),
-
-
-                P1 = 1,
-                P2 = 2,
-
-                ?assert(P1=/=P2)
+            
+                {R, _}=ppool:start_pool(ppool, {p1, 1, {port_worker, start_link, []} }),
+                ?assert(R==ok)
         end
      },
 
-     {"start_worker2",
+     {"create_port_worker_pool again",
         fun() ->
-        ?debugFmt("func test", []),
+
+               {error,{R,_}}=ppool:start_pool(ppool, {p1, 1, {port_worker, start_link, []} }),
+                ?assert(R==already_started)
+        end
+     },
 
 
-                P1 = 1,
-                P2 = 2,
+     {"check pg state",
+        fun() ->
+               Gr=pg:which_groups(),
+               ?debugFmt("pg members...~p~n", [Gr]),
 
-                ?assert(P1=/=P2)
+                ?assert(lists:member(p1, Gr)),
+                 ?assert(lists:member(p1_ev, Gr))
+ 
+        end
+     },
+
+
+     {"delete_port_worker_pool",
+        fun() ->
+
+                R=ppool:stop_pool(ppool, p1),
+                ?assert(R==ok)
+        end
+     },
+
+     {"check pg state after",
+        fun() ->
+               Gr=pg:which_groups(),
+                ?assert(not lists:member(p1, Gr)),
+                 ?assert(not lists:member(p1_ev, Gr))
+
+        end
+     },
+
+
+     {"delete_port_worker_pool again",
+        fun() ->
+
+                R=ppool:stop_pool(ppool, p1),
+                ?assert(R==ok)
         end
      }
-
 
     ].
 

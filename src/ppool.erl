@@ -39,7 +39,6 @@ stop_pool(N, Name) ->
     gen_server:call(N, {stop_pool, Name}).
 
 
-
 handle_call({start_pool, {Name, Limit, MFA}}, _From, State) ->
     P = ppool_sup:start_pool(Name, Limit, MFA),
 
