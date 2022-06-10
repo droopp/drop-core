@@ -133,21 +133,42 @@ run_tests() ->
 
             P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
 
-                ?assert(P1=:={ok, full_limit})
+                ?assert(P1=:={ok, full_limit}),
+
+               Res2=sys:get_status(whereis(p1)),
+
+                %% ?debugFmt("process state..~p~n", [Res2]),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+
+
+                ?assert(10=:=length(maps:keys(PidMaps2)))
 
 
         end
+     },
+
+     {"check stop all",
+        fun() ->
+
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
+
+                ?assert(P1=:={ok, full_limit}),
+
+            ok=ppool_worker:stop_all_workers(p1),
+
+             timer:sleep(3000),
+
+               Res2=sys:get_status(whereis(p1)),
+
+                ?debugFmt("process state..~p~n", [Res2]),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+
+                ?assert(0=:=length(maps:keys(PidMaps2)))
+
+        end
      }
-
-
-
-
-
-
-
-
-
-
 
 
     ].
