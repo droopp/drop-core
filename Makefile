@@ -10,10 +10,10 @@ include erlang.mk
 .PHONY: run build_test_workers clean_test_workers
 
 run:
-	/opt/erlang/bin/erl -pa ebin -kernel start_pg true -s main
+	erl -pa ebin -kernel start_pg true -s main
 
 build_test_workers:
-	cd test/workers && /opt/erlang/bin/erlc *.erl && cd -
+	cd test/workers && erlc *.erl && cd -
 
 clean_test_workers:
 	cd test/workers && rm -rf *.beam && cd -
