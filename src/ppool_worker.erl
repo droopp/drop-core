@@ -15,7 +15,7 @@
          stop_all_workers/1,
          stop_all_workers/2,
 
-         cap_workers/2,
+         cap_workers/3,
 
          call_worker/2,
          call_worker/3,
@@ -104,7 +104,7 @@ init([Name, Limit, MFA]) ->
 
 register_worker(Name, Pid0) ->
    
-   ?Trace({register, async, Pid0}),
+   ?Trace({register, Pid0}),
 
     case Pid0 of
        {Pid, Port} ->
@@ -114,11 +114,9 @@ register_worker(Name, Pid0) ->
           gen_server:call(Name, {register, {Pid, 0}})
     end.
 
-
-
 unregister_worker(Name, {Pid, Port}) ->
    
-   ?Trace({unregister, async, {Pid, Port}}),
+   ?Trace({unregister, {Pid, Port}}),
 
       gen_server:call(Name, {unregister, {Pid, Port}}).
 
@@ -126,15 +124,16 @@ unregister_worker(Name, {Pid, Port}) ->
 %% start/stop worker
 
 start_worker(Name, Cmd) ->
-    ?Trace({call_start_worker, Name, Cmd, 0}),
-    gen_server:call(Name, {start_worker, Cmd, 0}).
+    ?Trace({call_start_worker, Name, Cmd, no}),
+    gen_server:call(Name, {start_worker, Cmd, no}).
 
 start_worker(Name, Cmd, C) ->
     ?Trace({call_start_worker, Name, Cmd, C}),
     gen_server:call(Name, {start_worker, Cmd, C}).
 
+
 start_all_workers(Name, Cmd) ->
-    case start_worker(Name, Cmd, 0) of 
+    case start_worker(Name, Cmd, no) of 
 
        full_limit -> {ok, full_limit};
         _ -> start_all_workers(Name, Cmd)
@@ -150,13 +149,18 @@ start_all_workers(Name, Cmd, C) ->
     end.
 
 
-
 stop_all_workers(Name) ->
     gen_server:call(Name, {stop_all_workers, 0}).
 
 stop_all_workers(Name, C) ->
     gen_server:call(Name, {stop_all_workers, C}).
 
+
+cap_workers(Name, Cmd, C) ->
+
+    {ok, full_limit}=ppool_worker:start_all_workers(Name, Cmd, C),
+     ppool_worker:stop_all_workers(Name, C).
+ 
 
 %% API
 
@@ -232,10 +236,6 @@ unsubscribe(Name, S) ->
     gen_server:cast(Name, {unsubscribe, S}).
 
 
-cap_workers(Name, N) ->
-   gen_server:cast(Name, {cap_workers, N}).
-
-
 add_nomore_info(Name) ->
     gen_server:cast(Name, {add_nomore_info}).
 
@@ -245,7 +245,7 @@ add_nomore_info(Name) ->
 
 handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids,
                                                   limit=Limit}=State) 
-  when C=:=0 ->
+  when C=:=no ->
 
    Cr = length(maps:keys(Pids)),
 
@@ -264,9 +264,10 @@ handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids,
 
      end;
 
-handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids,
-                                                  limit=Limit}=State) 
-  when C >= Limit ->
+
+handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids}=State)
+
+ when C =/= no, C >= 0 ->
 
   NewLimit = C,
 
@@ -275,22 +276,24 @@ handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids,
    case Cr < NewLimit of
        true ->
 
-        ?Trace({call_start_worker_limit, Limit, NewLimit}),
+        ?Trace({call_start_worker_limit, NewLimit}),
  
          {ok, Pid} = supervisor:start_child(
                        list_to_atom(atom_to_list(Name)++"_sup"),
                        [Cmd]),
 
                {reply, Pid, State#state{limit=NewLimit} };
+
        false ->
-           {reply, full_limit, State}
+           {reply, full_limit, State#state{limit=NewLimit}}
 
      end;
 
-handle_call({start_worker, _, C}, _From, State)
-  when C < 0 ->
-     {reply, bad_limit, State};
 
+handle_call({start_worker, _, C}, _From, State)
+ when C =/= no, C < 0 ->
+    
+    {reply, full_limit, State};
 
 
 handle_call({stop_all_workers, C}, _From, 
@@ -657,21 +660,6 @@ handle_cast({unsubscribe, S}, #state{name=Name}=State) ->
     gen_event:delete_handler(list_to_atom(atom_to_list(Name)++"_ev"), 
                               {ppool_ev, S},[]),
     	{noreply, State};
-
-
-
-handle_cast({cap_workers, N}, #state{workers_pids=Pids}=State) ->
-
-    Cr=length(maps:keys(Pids)),
-
-     ?Trace({cap_workers, N, Cr}),
-     
-     case Cr < N of
-         true ->
-             {noreply, State#state{limit=N-Cr}};
-         false ->
-              {noreply, State}
-    end;
 
 
 handle_cast(_Msg, State) ->

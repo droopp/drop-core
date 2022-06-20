@@ -144,6 +144,93 @@ run_tests() ->
         end
      },
 
+
+     {"check start all >10",
+        fun() ->
+
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 13),
+
+                ?assert(P1=:={ok, full_limit}),
+
+               Res2=sys:get_status(whereis(p1)),
+
+                %% ?debugFmt("process state..~p~n", [Res2]),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+
+
+                ?assert(13=:=length(maps:keys(PidMaps2)))
+
+
+        end
+     },
+
+
+     {"check start all  + >10",
+        fun() ->
+
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
+
+                ?assert(P1=:={ok, full_limit}),
+
+               Res1=sys:get_status(whereis(p1)),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps1,_,_,_}}]}]]} = Res1,
+
+
+                ?assert(10=:=length(maps:keys(PidMaps1))),
+
+
+            P2=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 14),
+
+                ?assert(P2=:={ok, full_limit}),
+
+               Res2=sys:get_status(whereis(p1)),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+
+
+                ?assert(14=:=length(maps:keys(PidMaps2)))
+
+
+        end
+     },
+
+     {"check start all < 10",
+        fun() ->
+
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 5),
+
+                ?assert(P1=:={ok, full_limit}),
+
+               Res1=sys:get_status(whereis(p1)),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps1,_,_,_}}]}]]} = Res1,
+
+                ?assert(5=:=length(maps:keys(PidMaps1)))
+
+        end
+     },
+
+     {"check start all  minus count",
+        fun() ->
+
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}, -2),
+
+                ?assert(P1=:={ok, full_limit}),
+
+               Res1=sys:get_status(whereis(p1)),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps1,_,_,_}}]}]]} = Res1,
+
+                ?assert(0=:=length(maps:keys(PidMaps1)))
+
+        end
+     },
+
+
+
+
      {"check stop all",
         fun() ->
 
@@ -286,6 +373,45 @@ run_tests() ->
                 {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_}}]}]]} = Res2,
 
                 ?assert(0=:=length(maps:keys(Pidmaps2)))
+
+        end
+     },
+
+     {"cap workers",
+        fun() ->
+
+            ppool_worker:cap_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 3),
+
+             timer:sleep(50),
+
+               Res=sys:get_status(whereis(p1)),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps,_,_,_}}]}]]} = Res,
+
+                ?assert(3=:=length(maps:keys(Pidmaps))),
+
+
+            ppool_worker:cap_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 10),
+
+             timer:sleep(50),
+
+               Res2=sys:get_status(whereis(p1)),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_}}]}]]} = Res2,
+
+                ?assert(10=:=length(maps:keys(Pidmaps2))),
+
+
+            ppool_worker:cap_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 2),
+
+             timer:sleep(50),
+
+               Res3=sys:get_status(whereis(p1)),
+
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps3,_,_,_}}]}]]} = Res3,
+
+                ?assert(2=:=length(maps:keys(Pidmaps3)))
+
 
         end
      }
