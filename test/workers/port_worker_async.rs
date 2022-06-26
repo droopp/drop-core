@@ -1,5 +1,5 @@
 //
-// Port worker example
+// Port async worker example
 //
 
 use std::io;
@@ -107,7 +107,7 @@ fn run_reader(txs: Vec<Sender<String>>, rx: Receiver<u32>){
         let msg = read();
 
         // workers queue
-        // get free and pass msg
+        // get free worker and pass msg
         let idx = rx.recv().unwrap();
         txs[idx as usize].send(msg).unwrap();
     }

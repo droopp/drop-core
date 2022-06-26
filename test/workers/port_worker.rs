@@ -3,11 +3,17 @@
 //
 
 use std::io;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use std::env;
-
+use std::thread;
 
 // API 
+//
+// Process - actor
+//  read - recieve message from world
+//  send - send message to world
+//  log  -  logging anything
+
 
 fn read() -> String {
     let mut msg = String::new();
@@ -25,23 +31,17 @@ fn send(msg: &String) {
 fn log(msg: String) {
 
     let sys_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-
-
     eprintln!("{:?}: {}", sys_time.as_millis(), msg);
 
 }
 
 
-// Process - actor
-//  read - recieve message from world
-//  send - send message to world
-//  log  -  logging anything
-
-
-
 fn process(args: Vec<String>){
 
     log(format!("start working / args={:?}", args));
+
+    let sleep = args[0].parse::<u64>().unwrap();
+    let wait_secs = Duration::from_secs(sleep);
 
     loop {
 
@@ -54,6 +54,7 @@ fn process(args: Vec<String>){
         log(format!("get message: {}", msg));
 
         // do work
+        thread::sleep(wait_secs);
 
         send(&msg);
 

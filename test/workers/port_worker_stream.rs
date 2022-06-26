@@ -9,6 +9,12 @@ use std::{thread, time};
 
 
 // API 
+//
+// Process - actor
+//  read - recieve message from world
+//  send - send message to world
+//  log  -  logging anything
+
 
 fn read() -> String {
     let mut msg = String::new();
@@ -26,16 +32,9 @@ fn send(msg: &String) {
 fn log(msg: String) {
 
     let sys_time = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap();
-
     eprintln!("{:?}: {}", sys_time.as_millis(), msg);
 
 }
-
-
-// Process - actor
-//  read - recieve message from world
-//  send - send message to world
-//  log  -  logging anything
 
 
 
@@ -49,7 +48,7 @@ fn process(args: Vec<String>){
 
     let secs: u64 = args[0].parse().unwrap();
 
-    let wait_secs = time::Duration::from_millis(secs);
+    let wait_secs = time::Duration::from_secs(secs);
 
 
     loop {
