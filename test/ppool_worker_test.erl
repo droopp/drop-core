@@ -39,7 +39,7 @@ run_tests() ->
      {"start one worker",
         fun() ->
 
-            P1=ppool_worker:start_worker(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_worker(p1, {{erl_worker, do_2000_ok}, 3000}),
               %% ?debugFmt("start worker..~p~n", [P1]),
                 ?assert(is_pid(P1))
 
@@ -49,9 +49,9 @@ run_tests() ->
      {"start 9 workers",
         fun() ->
 
-          [ppool_worker:start_worker(p1, {{erl_worker, do_5000_ok}, 6000})||_X<-[1,2,3,4,5,6,7,8]],
+          [ppool_worker:start_worker(p1, {{erl_worker, do_2000_ok}, 3000})||_X<-[1,2,3,4,5,6,7,8]],
 
-            P1=ppool_worker:start_worker(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_worker(p1, {{erl_worker, do_2000_ok}, 3000}),
                 ?assert(is_pid(P1))
 
         end
@@ -60,9 +60,9 @@ run_tests() ->
      {"start 11 overflow workers",
         fun() ->
 
-          [ppool_worker:start_worker(p1, {{erl_worker, do_5000_ok}, 6000})||_X<-[1,2,3,4,5,6,7,8,9,10]],
+          [ppool_worker:start_worker(p1, {{erl_worker, do_2000_ok}, 3000})||_X<-[1,2,3,4,5,6,7,8,9,10]],
 
-            P1=ppool_worker:start_worker(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_worker(p1, {{erl_worker, do_2000_ok}, 3000}),
                 ?assert(P1=:=full_limit)
 
         end
@@ -72,7 +72,7 @@ run_tests() ->
      {"check pid registered",
         fun() ->
 
-            P1=ppool_worker:start_worker(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_worker(p1, {{erl_worker, do_2000_ok}, 3000}),
 
                Res=sys:get_status(whereis(p1)),
 
@@ -82,7 +82,7 @@ run_tests() ->
                 ?assert(PidMaps=:=#{P1 => 0}),
 
              %% create new
-             P2=ppool_worker:start_worker(p1, {{erl_worker, do_5000_ok}, 6000}),
+             P2=ppool_worker:start_worker(p1, {{erl_worker, do_2000_ok}, 3000}),
  
                Res2=sys:get_status(whereis(p1)),
 
@@ -98,7 +98,7 @@ run_tests() ->
      {"check pid REregistered",
         fun() ->
 
-            P1=ppool_worker:start_worker(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_worker(p1, {{erl_worker, do_2000_ok}, 3000}),
 
                Res=sys:get_status(whereis(p1)),
 
@@ -118,7 +118,6 @@ run_tests() ->
 
                 {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
 
-
                 ?assert(PidMaps2=/=#{P1 => 0})
 
         end
@@ -127,7 +126,7 @@ run_tests() ->
      {"check start all",
         fun() ->
 
-            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}),
 
                 ?assert(P1=:={ok, full_limit}),
 
@@ -148,7 +147,7 @@ run_tests() ->
      {"check start all >10",
         fun() ->
 
-            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 13),
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}, 13),
 
                 ?assert(P1=:={ok, full_limit}),
 
@@ -169,7 +168,7 @@ run_tests() ->
      {"check start all  + >10",
         fun() ->
 
-            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}),
 
                 ?assert(P1=:={ok, full_limit}),
 
@@ -181,7 +180,7 @@ run_tests() ->
                 ?assert(10=:=length(maps:keys(PidMaps1))),
 
 
-            P2=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 14),
+            P2=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}, 14),
 
                 ?assert(P2=:={ok, full_limit}),
 
@@ -199,7 +198,7 @@ run_tests() ->
      {"check start all < 10",
         fun() ->
 
-            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 5),
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}, 5),
 
                 ?assert(P1=:={ok, full_limit}),
 
@@ -215,7 +214,7 @@ run_tests() ->
      {"check start all  minus count",
         fun() ->
 
-            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}, -2),
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}, -2),
 
                 ?assert(P1=:={ok, full_limit}),
 
@@ -234,7 +233,7 @@ run_tests() ->
      {"check stop all",
         fun() ->
 
-            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}),
 
                 ?assert(P1=:={ok, full_limit}),
 
@@ -254,7 +253,7 @@ run_tests() ->
      {"check stop 8 of 10",
         fun() ->
 
-            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}),
 
             ?assert(P1=:={ok, full_limit}),
 
@@ -276,7 +275,7 @@ run_tests() ->
      {"check 2 stops: 10 -> 4 -> 2",
         fun() ->
 
-            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}),
 
                 ?assert(P1=:={ok, full_limit}),
 
@@ -307,7 +306,7 @@ run_tests() ->
      {"start 3 -> stops: all -> start all",
         fun() ->
 
-          [ppool_worker:start_worker(p1, {{erl_worker, do_5000_ok}, 6000})||_X<-[1,2,3]],
+          [ppool_worker:start_worker(p1, {{erl_worker, do_2000_ok}, 3000})||_X<-[1,2,3]],
 
              timer:sleep(50),
 
@@ -328,7 +327,7 @@ run_tests() ->
                 ?assert(0=:=length(maps:keys(Pidmaps2))),
 
 
-            P2=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P2=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}),
 
                 ?assert(P2=:={ok, full_limit}),
 
@@ -346,7 +345,7 @@ run_tests() ->
      {"double stop",
         fun() ->
 
-            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_5000_ok}, 6000}),
+            P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_2000_ok}, 3000}),
 
                 ?assert(P1=:={ok, full_limit}),
 
@@ -380,7 +379,7 @@ run_tests() ->
      {"cap workers",
         fun() ->
 
-            ppool_worker:cap_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 3),
+            ppool_worker:cap_workers(p1, {{erl_worker, do_2000_ok}, 3000}, 3),
 
              timer:sleep(50),
 
@@ -391,7 +390,7 @@ run_tests() ->
                 ?assert(3=:=length(maps:keys(Pidmaps))),
 
 
-            ppool_worker:cap_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 10),
+            ppool_worker:cap_workers(p1, {{erl_worker, do_2000_ok}, 3000}, 10),
 
              timer:sleep(50),
 
@@ -402,7 +401,7 @@ run_tests() ->
                 ?assert(10=:=length(maps:keys(Pidmaps2))),
 
 
-            ppool_worker:cap_workers(p1, {{erl_worker, do_5000_ok}, 6000}, 2),
+            ppool_worker:cap_workers(p1, {{erl_worker, do_2000_ok}, 3000}, 2),
 
              timer:sleep(50),
 

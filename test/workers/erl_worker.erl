@@ -3,17 +3,35 @@
 %%
 
 -module(erl_worker).
--export([do_5000_ok/1]).
+-export([do_2000_ok/1, do_ok/1]).
 
-do_5000_ok(F) ->
+
+do_ok(F) ->
 
     receive
 
-        R -> timer:sleep(5000),
+        R ->
             io:format("spawn ~p~n", [R]),
 
               F!{self(), {data, [<<"ok">>]}},
  
-                do_5000_ok(F)
+                do_ok(F)
 
     end.
+
+
+do_2000_ok(F) ->
+
+    receive
+
+        R -> timer:sleep(2000),
+            io:format("spawn ~p~n", [R]),
+
+              F!{self(), {data, [<<"ok">>]}},
+ 
+                do_2000_ok(F)
+
+    end.
+
+
+

@@ -25,7 +25,6 @@
 %% API.
 
 start_link(N, Cmd) ->
- 
 	gen_server:start_link(?MODULE, {N, Cmd}, []).
 
 %% gen_server.
@@ -99,7 +98,6 @@ handle_cast({msg, _, stop}, #state{master=M, port=Port}=State) ->
 
     case Qlen of
         {_, 0} ->
-
             ppool_worker:unregister_worker(M, {self(), Port}),
 
             {stop, normal, State};
@@ -277,7 +275,7 @@ new_ets_msg(N, _Cmd, R, Msg) ->
 
       true=ets:insert(N, #worker_stat{ref=Ref, 
                                       ref_from=R, pid=self(),cmd=N,
-                                      req=Msg, status=running,
+                                      req=no, status=running,
                                       time_start=os:timestamp()}
                         ),
 
