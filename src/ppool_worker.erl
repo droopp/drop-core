@@ -754,9 +754,14 @@ new_ets_msg(Name, From, Msg, P0, Ports) ->
 
       ?Trace({new_async_msg_defer, Ref, Sref}),
 
+        MsgL = case os:getenv("ETS_REQ_RES", "yes") of
+                    "yes" -> Msg;
+                    "no" -> no
+                end,
+
        true=ets:insert(Name, #worker_stat{ref=Ref, 
                                      ref_from=no, pid=self(),cmd=Name,
-                                     req=Msg, status=running,
+                                     req=MsgL, status=running,
                                      time_start=os:timestamp()}
                         ),
 

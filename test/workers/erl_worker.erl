@@ -10,6 +10,10 @@ do_ok(F) ->
 
     receive
 
+        <<"error\n">> ->
+             io:format("spawn ~p~n", [error]),
+             error(err);
+
         R ->
             io:format("spawn ~p~n", [R]),
 
@@ -24,7 +28,7 @@ do_2000_ok(F) ->
 
     receive
 
-        R -> timer:sleep(2000),
+        R -> timer:sleep(200),
             io:format("spawn ~p~n", [R]),
 
               F!{self(), {data, [<<"ok">>]}},

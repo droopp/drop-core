@@ -8,7 +8,10 @@ exec_test_() ->
          %% code:load_abs("test/workers/erl_worker"),
           ppool:start_pool(ppool, {p1, 3, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p2, 3, {worker, start_link, []} }),
-          ppool:start_pool(ppool, {p3, 3, {worker, start_link, []} })
+          ppool:start_pool(ppool, {p3, 3, {worker, start_link, []} }),
+          ppool:start_pool(ppool, {p4, 1, {worker, start_link, []} })
+
+
 
      end,
      fun(_) ->
@@ -16,6 +19,7 @@ exec_test_() ->
        ppool:stop_pool(ppool, p1),
        ppool:stop_pool(ppool, p2),
        ppool:stop_pool(ppool, p3),
+       ppool:stop_pool(ppool, p4),
 
         application:stop(ppool)
 
@@ -24,16 +28,20 @@ exec_test_() ->
       foreach,
       fun() ->
 
-         P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_ok}, 1000}),
+         P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_ok}, 100}),
           ?assert(P1=={ok, full_limit}),
 
-         P2=ppool_worker:start_all_workers(p2, {{erl_worker, do_2000_ok}, 3000}),
+         P2=ppool_worker:start_all_workers(p2, {{erl_worker, do_2000_ok}, 300}),
 
           ?assert(P2=={ok, full_limit}),
 
-         P3=ppool_worker:start_all_workers(p3, {{erl_worker, do_2000_ok}, 1000}),
+         P3=ppool_worker:start_all_workers(p3, {{erl_worker, do_2000_ok}, 100}),
 
-          ?assert(P3=={ok, full_limit})
+          ?assert(P3=={ok, full_limit}),
+
+         P4=ppool_worker:start_all_workers(p4, {{erl_worker, do_ok}, 100}),
+          ?assert(P4=={ok, full_limit})
+
 
       end,
       fun(_) ->
@@ -45,7 +53,10 @@ exec_test_() ->
           ?assert(P2==ok),
 
          P3=ppool_worker:stop_all_workers(p3),
-          ?assert(P3==ok)
+          ?assert(P3==ok),
+
+         P4=ppool_worker:stop_all_workers(p4),
+          ?assert(P4==ok)
 
       end,
       run_tests()
@@ -103,7 +114,7 @@ run_tests() ->
 
               ?assert(length(Free2)=:=3),
 
-            timer:sleep(3000),
+            timer:sleep(300),
 
                Res3=sys:get_status(whereis(p2)),
 
@@ -130,7 +141,7 @@ run_tests() ->
 
               {ok,[{worker_stat,
                         ID,
-                        no,_,p2,no,Status, Response,
+                        _,_,p2,_,Status, Response,
                         _,
                         undefined}]} = Res,
 
@@ -139,22 +150,21 @@ run_tests() ->
               ?assert(Status=:=running),
               ?assert(Response=:=undefined),
 
-            timer:sleep(3000),
+            timer:sleep(300),
 
 
               Res2 = ppool_worker:get_result_worker(p2, ID),
 
               {ok,[{worker_stat,
                         ID,
-                        no,_,p2,no,Status2, Response2,
+                        _,_,p2,_,Status2, Response2,
                         _,
                         _}]} = Res2,
 
-              %%?debugFmt("process state..~p~n", [Res2]),
-
+              ?debugFmt("process state..~p~n", [Res2]),
 
               ?assert(Status2=:=ok),
-              ?assert(Response2=:=no)
+              ?assert(Response2=:=[<<"ok">>])
 
         end
      }},
@@ -163,36 +173,86 @@ run_tests() ->
       {timeout, 10,
         fun() ->
 
-            {R, ID}=ppool_worker:call_worker(p3, <<"request1\n">>),
-
-              ?assert(R=:=ok),
-
-           timer:sleep(3000),
+            spawn(fun() -> ppool_worker:call_worker(p3, <<"request1\n">>) end),
 
 
-              Res2 = ppool_worker:get_result_worker(p2, ID),
+           timer:sleep(300),
 
-              {ok,[{worker_stat,
-                        ID,
-                        no,_,p2,no,Status2, Response2,
-                        _,
-                        _}]} = Res2,
+           [{worker_stat,_,_,_,p3,_,R,undefined,_,_}] = ets:tab2list(p3),
 
-              %%?debugFmt("process state..~p~n", [Res2]),
+              ?assert(R=:=timeout),
+
+            timer:sleep(500),
+
+               Res3=sys:get_status(whereis(p3)),
+
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
+
+              %% ?debugFmt("process state..~p~n", [PidMaps3]),
+
+                Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=0 end ,PidMaps3)),
+
+              ?assert(length(Free3)=:=3)
+
+        end
+     }},
+
+     {"call_worker 1 + error and get result",
+      {timeout, 5,
+        fun() ->
+
+            spawn(fun() -> ppool_worker:call_worker(p4, <<"error\n">>) end),
+
+           timer:sleep(100),
+
+            [{worker_stat, _,_,_,p4,_,R,_,_,_}] = ets:tab2list(p4),
+
+              %% ?debugFmt("process state..~p~n", [R]),
+
+              ?assert(R=:=error),
+
+              timer:sleep(500),
+
+               Res3=sys:get_status(whereis(p4)),
+
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
+
+              %% ?debugFmt("process state..~p~n", [PidMaps3]),
+
+              Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=0 end ,PidMaps3)),
+
+              ?assert(length(Free3)=:=1)
+
+        end
+     }},
+
+     {"first_call_worker",
+      {timeout, 5,
+        fun() ->
+
+        %% recreate pool
+           ppool:stop_pool(ppool, p4),
+           ppool:start_pool(ppool, {p4, 1, {worker, start_link, []} }),
+
+         P4=ppool_worker:start_all_workers(p4, {{erl_worker, do_ok}, 100}),
+          ?assert(P4=={ok, full_limit}),
 
 
-              ?assert(Status2=:=ok),
-              ?assert(Response2=:=no)
+           R1=ppool_worker:first_call_worker(p4, <<"request1\n">>),
+
+            %%?debugFmt("process state..~p~n", [R1]),
+
+            ?assert(R1=:={ok, call}),
+
+           R2=ppool_worker:first_call_worker(p4, <<"request2\n">>),
+
+             ?debugFmt("process state..~p~n", [R2]),
+
+
+              ?assert(R2=:={ok, []})
 
         end
      }}
-
-
-
-
-
-
-
 
 
     ].

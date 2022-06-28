@@ -273,9 +273,14 @@ new_ets_msg(N, _Cmd, R, Msg) ->
 
      Ref={node(), self(), os:timestamp()},
 
+        MsgL = case os:getenv("ETS_REQ_RES", "yes") of
+                    "yes" -> Msg;
+                    "no" -> no
+                end,
+
       true=ets:insert(N, #worker_stat{ref=Ref, 
                                       ref_from=R, pid=self(),cmd=N,
-                                      req=no, status=running,
+                                      req=MsgL, status=running,
                                       time_start=os:timestamp()}
                         ),
 
@@ -292,9 +297,14 @@ process_ets_msg(N, E, Port, Ref, Msg, T) ->
 
             {ok, Response} -> 
 
+                MsgL = case os:getenv("ETS_REQ_RES", "yes") of
+                            "yes" -> Response;
+                            "no" -> no
+                        end,
+
                 true=ets:update_element(N, Ref, [
                                                {#worker_stat.status, ok},
-                                               {#worker_stat.result, no},
+                                               {#worker_stat.result, MsgL},
                                                {#worker_stat.time_end, os:timestamp()}
                                 ]),
 

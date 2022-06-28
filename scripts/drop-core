@@ -30,6 +30,7 @@ DROP_SSL_OPT="server_certfile /ets/ssl/drop/drop-dist.pem server_keyfile /etc/ss
 DROP_LOG_DIR=/var/lib/drop/logs
 DROP_VAR_DIR=/var/lib/drop
 DROP_COOKIE=mesh1
+ETS_REQ_RES=no
 ERL_MAX_ETS_TABLES=50000
 DROP_IO_THREAD_POOL_SIZE=128
 ERL_MAX_PROC=1048576
@@ -204,6 +205,7 @@ start() {
         -kernel start_pg true \
         -pa ${DROP_EBIN_ROOT} \
         -env NODE_NAME ${NODE_NAME} \
+        -env ETS_REQ_RES ${ETS_REQ_RES} \
         -env HOSTNAME0 ${HOSTNAME0} \
         -env DROP_HOME ${DROP_HOME} \
         -env DROP_VAR_DIR ${DROP_VAR_DIR} \
