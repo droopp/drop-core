@@ -1,4 +1,4 @@
--module(ppool_worker_cast_test).
+-module(ppool_worker_dacast_test).
 -include_lib("eunit/include/eunit.hrl").
 
 exec_call_test_() ->
@@ -76,7 +76,7 @@ run_call_tests() ->
      {"call_worker 1 msg",
         fun() ->
 
-            R=ppool_worker:cast_worker(p1, <<"request\n">>),
+            R=ppool_worker:dacast_worker(p1, no, <<"request\n">>),
 
               ?assert(R=:=ok)
 
@@ -87,32 +87,32 @@ run_call_tests() ->
       {timeout, 30,
         fun() ->
 
-            R=ppool_worker:cast_worker(p2, <<"request1\n">>),
+            R=ppool_worker:dacast_worker(p2, no, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
-               timer:sleep(10),
+              timer:sleep(10),
 
                Res=sys:get_status(whereis(p2)),
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
 
-                % ?debugFmt("process state..~p~n", [PidMaps]),
+                ?debugFmt("process state..~p~n", [PidMaps]),
 
                 Free=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps)),
 
               ?assert(length(Free)=:=1),
 
-              ppool_worker:cast_worker(p2, <<"request2\n">>),
+              ppool_worker:dacast_worker(p2, no, <<"request2\n">>),
                timer:sleep(10),
 
-              ppool_worker:cast_worker(p2, <<"request3\n">>),
+              ppool_worker:dacast_worker(p2, no, <<"request3\n">>),
                timer:sleep(10),
 
-              ppool_worker:cast_worker(p2, <<"request4\n">>),
+              ppool_worker:dacast_worker(p2, no, <<"request4\n">>),
                 timer:sleep(10),
 
-              R2=ppool_worker:cast_worker(p2, <<"request5\n">>),
+              R2=ppool_worker:dacast_worker(p2, no, <<"request5\n">>),
 
              % ?debugFmt("start worker..~p~n", [R2]),
  
@@ -153,7 +153,7 @@ run_call_tests() ->
       {timeout, 5,
         fun() ->
 
-            R=ppool_worker:cast_worker(p5, <<"request1\n">>),
+            R=ppool_worker:dacast_worker(p5, no, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
@@ -203,7 +203,7 @@ run_call_tests() ->
       {timeout, 10,
         fun() ->
 
-            spawn(fun() -> ppool_worker:cast_worker(p3, <<"request1\n">>) end),
+            spawn(fun() -> ppool_worker:dacast_worker(p3, no, <<"request1\n">>) end),
 
 
            timer:sleep(300),
@@ -231,7 +231,7 @@ run_call_tests() ->
       {timeout, 5,
         fun() ->
 
-            spawn(fun() -> ppool_worker:cast_worker(p4, <<"error\n">>) end),
+            spawn(fun() -> ppool_worker:dacast_worker(p4, no, <<"error\n">>) end),
 
            timer:sleep(100),
 
