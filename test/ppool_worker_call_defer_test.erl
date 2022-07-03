@@ -1,19 +1,17 @@
--module(ppool_worker_dacast_test).
+-module(ppool_worker_call_defer_test).
 -include_lib("eunit/include/eunit.hrl").
 
-exec_call_test_i() ->
+exec_call_test_() ->
     {setup,
      fun() ->
         application:start(ppool),
          %% code:load_abs("test/workers/erl_worker"),
-
           ppool:start_pool(ppool, {p1, 3, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p2, 3, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p3, 3, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p4, 1, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p5, 1, {worker, start_link, []} })
  
-
      end,
      fun(_) ->
 
@@ -62,7 +60,11 @@ exec_call_test_i() ->
           ?assert(P3==ok),
 
          P4=ppool_worker:stop_all_workers(p4),
-          ?assert(P4==ok)
+          ?assert(P4==ok),
+
+         P5=ppool_worker:stop_all_workers(p5),
+          ?assert(P5==ok)
+
 
       end,
       run_call_tests()
@@ -76,9 +78,14 @@ run_call_tests() ->
      {"call_worker 1 msg",
         fun() ->
 
-            R=ppool_worker:dacast_worker(p1, no, <<"request\n">>),
+            {R, _}=ppool_worker:cast_worker_defer(p1, <<"request\n">>),
 
-              ?assert(R=:=ok)
+              ?assert(R=:=ok),
+
+              receive
+                {response,{ok,[Res]}} ->
+                        ?assert(Res=:=<<"ok">>)
+              end
 
         end
      },
@@ -87,32 +94,30 @@ run_call_tests() ->
       {timeout, 30,
         fun() ->
 
-            R=ppool_worker:dacast_worker(p2, no, <<"request1\n">>),
+            {R, _}=ppool_worker:cast_worker_defer(p2, <<"request1\n">>),
 
               ?assert(R=:=ok),
-
-              timer:sleep(10),
 
                Res=sys:get_status(whereis(p2)),
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
 
-                ?debugFmt("process state..~p~n", [PidMaps]),
+                % ?debugFmt("process state..~p~n", [PidMaps]),
 
                 Free=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps)),
 
               ?assert(length(Free)=:=1),
 
-              ppool_worker:dacast_worker(p2, no, <<"request2\n">>),
+              ppool_worker:cast_worker_defer(p2, <<"request2\n">>),
                timer:sleep(10),
 
-              ppool_worker:dacast_worker(p2, no, <<"request3\n">>),
+              ppool_worker:cast_worker_defer(p2, <<"request3\n">>),
                timer:sleep(10),
 
-              ppool_worker:dacast_worker(p2, no, <<"request4\n">>),
+              ppool_worker:cast_worker_defer(p2, <<"request4\n">>),
                 timer:sleep(10),
 
-              R2=ppool_worker:dacast_worker(p2, no, <<"request5\n">>),
+            {R2, _}=ppool_worker:cast_worker_defer(p2, <<"request5\n">>),
 
              % ?debugFmt("start worker..~p~n", [R2]),
  
@@ -139,7 +144,6 @@ run_call_tests() ->
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
 
-
               %%?debugFmt("process state..~p~n", [PidMaps3]),
 
                 Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=1 end ,PidMaps3)),
@@ -153,7 +157,7 @@ run_call_tests() ->
       {timeout, 5,
         fun() ->
 
-            R=ppool_worker:dacast_worker(p5, no, <<"request1\n">>),
+            {R, _}=ppool_worker:cast_worker_defer(p5, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
@@ -203,7 +207,7 @@ run_call_tests() ->
       {timeout, 10,
         fun() ->
 
-            spawn(fun() -> ppool_worker:dacast_worker(p3, no, <<"request1\n">>) end),
+            spawn(fun() -> ppool_worker:cast_worker_defer(p3, <<"request1\n">>) end),
 
 
            timer:sleep(300),
@@ -231,7 +235,7 @@ run_call_tests() ->
       {timeout, 5,
         fun() ->
 
-            spawn(fun() -> ppool_worker:dacast_worker(p4, no, <<"error\n">>) end),
+            spawn(fun() -> ppool_worker:cast_worker_defer(p4, <<"error\n">>) end),
 
            timer:sleep(100),
 
@@ -247,7 +251,7 @@ run_call_tests() ->
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
 
-              %% ?debugFmt("process state..~p~n", [PidMaps3]),
+              ?debugFmt("process state..~p~n", [PidMaps3]),
 
               Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=0 end ,PidMaps3)),
 

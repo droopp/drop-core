@@ -1,7 +1,7 @@
 -module(ppool_worker_test).
 -include_lib("eunit/include/eunit.hrl").
 
-exec_test_() ->
+exec_test_i() ->
     {setup,
      fun() ->
         application:start(ppool),
