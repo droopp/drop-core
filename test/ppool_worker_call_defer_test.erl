@@ -207,7 +207,7 @@ run_call_tests() ->
       {timeout, 10,
         fun() ->
 
-            spawn(fun() -> ppool_worker:cast_worker_defer(p3, <<"request1\n">>) end),
+           ppool_worker:cast_worker_defer(p3, <<"request1\n">>),
 
 
            timer:sleep(300),
@@ -217,6 +217,11 @@ run_call_tests() ->
               ?assert(R=:=timeout),
 
             timer:sleep(500),
+
+              receive
+                {response, ResE} ->
+                        ?assert(ResE=:=timeout)
+              end,
 
                Res3=sys:get_status(whereis(p3)),
 
@@ -235,7 +240,7 @@ run_call_tests() ->
       {timeout, 5,
         fun() ->
 
-            spawn(fun() -> ppool_worker:cast_worker_defer(p4, <<"error\n">>) end),
+           ppool_worker:cast_worker_defer(p4, <<"error\n">>),
 
            timer:sleep(100),
 
@@ -246,6 +251,12 @@ run_call_tests() ->
               ?assert(R=:=error),
 
               timer:sleep(500),
+
+              receive
+                {response, ResE} ->
+                        ?assert(ResE=:=error)
+
+              end,
 
                Res3=sys:get_status(whereis(p4)),
 

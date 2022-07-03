@@ -28,9 +28,6 @@
          dacast_worker/3,
          cast_worker_defer/2,
 
-         call_workers/2,
-         call_sync_worker/2,
-
          cast_all_workers/2,
          cast_all_workers/3,
          stream_all_workers/2,
@@ -199,13 +196,6 @@ dacast_worker(Name, Ref, Msg) ->
 
 cast_worker_defer(Name, Msg) ->
     gen_server:call(Name, {cast_worker_defer, Msg}).
-
-
-call_workers(Name, Msg) ->
-    gen_server:call(Name, {call_workers, {msg, no, Msg}}).
-
-call_sync_worker(Name, Msg) ->
-   gen_server:call(Name, {call_worker, {sync_msg, no, Msg}}).
 
 
 cast_all_workers(Name, Msg) ->
@@ -505,25 +495,6 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
               {reply, {ok, R}, State}
 
       end;
-
-
-handle_call({call_workers, _Msg}, _From, #state{async=Async}=State) 
-  when Async =:= true ->
-     {reply, {ok, []}, State};
-
-handle_call({call_workers, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
-  when Async =:= false ->
- 
-    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
-
-    ?Trace(Free),
-
-        R=lists:map(fun(P) ->
-                        gen_server:call(P, Msg)
-                end
-                ,maps:keys(Free)),
-
-            {reply, {ok, R}, State};
 
 
 handle_call({get_result_worker, Msg}, _From, #state{name=Name}=State) ->

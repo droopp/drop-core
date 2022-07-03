@@ -58,24 +58,6 @@ handle_call({msg, R, Msg}, From, #state{master=N, ev=E, cmd=Cmd, timeout=T,
        end;
 
 
-handle_call({sync_msg, R, Msg}, _From, #state{master=N, ev=E,
-                                           cmd=Cmd, timeout=T, 
-                                           port=Port}=State) ->
- 
-    Ref = new_ets_msg(N, Cmd, R, Msg),
-
-        case process_ets_msg(N, E, Port, Ref, Msg, T) of
-            {ok, Response} -> 
-                {reply, {ok, Response}, State};
-
-            {error, 1, _} ->
-                {stop, error, State};
-
-            {error, timeout} ->
-                 {stop, port_timeout, State}
-        end;
-
-
 handle_call(stop, From, State) ->
 
     ?Trace({stop, self()}),
