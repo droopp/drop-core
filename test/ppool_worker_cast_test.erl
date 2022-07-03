@@ -1,4 +1,4 @@
--module(ppool_worker_call_test).
+-module(ppool_worker_cast_test).
 -include_lib("eunit/include/eunit.hrl").
 
 exec_call_test_() ->
@@ -6,10 +6,13 @@ exec_call_test_() ->
      fun() ->
         application:start(ppool),
          %% code:load_abs("test/workers/erl_worker"),
+
           ppool:start_pool(ppool, {p1, 3, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p2, 3, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p3, 3, {worker, start_link, []} }),
-          ppool:start_pool(ppool, {p4, 1, {worker, start_link, []} })
+          ppool:start_pool(ppool, {p4, 1, {worker, start_link, []} }),
+          ppool:start_pool(ppool, {p5, 1, {worker, start_link, []} })
+ 
 
      end,
      fun(_) ->
@@ -18,6 +21,7 @@ exec_call_test_() ->
        ppool:stop_pool(ppool, p2),
        ppool:stop_pool(ppool, p3),
        ppool:stop_pool(ppool, p4),
+       ppool:stop_pool(ppool, p5),
 
         application:stop(ppool)
 
@@ -38,7 +42,11 @@ exec_call_test_() ->
           ?assert(P3=={ok, full_limit}),
 
          P4=ppool_worker:start_all_workers(p4, {{erl_worker, do_ok}, 100}),
-          ?assert(P4=={ok, full_limit})
+          ?assert(P4=={ok, full_limit}),
+
+         P5=ppool_worker:start_all_workers(p5, {{erl_worker, do_2000_ok}, 300}),
+
+          ?assert(P5=={ok, full_limit})
 
 
       end,
@@ -68,7 +76,7 @@ run_call_tests() ->
      {"call_worker 1 msg",
         fun() ->
 
-            {R, _}=ppool_worker:call_worker(p1, <<"request\n">>),
+            R=ppool_worker:cast_worker(p1, <<"request\n">>),
 
               ?assert(R=:=ok)
 
@@ -79,7 +87,7 @@ run_call_tests() ->
       {timeout, 30,
         fun() ->
 
-            {R, _}=ppool_worker:call_worker(p2, <<"request1\n">>),
+            R=ppool_worker:cast_worker(p2, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
@@ -93,30 +101,42 @@ run_call_tests() ->
 
               ?assert(length(Free)=:=1),
 
-             [ppool_worker:call_worker(p2, <<"request10\n">>) ||_X<-[1,2,3,4,5,6,7,8,9]],
+              ppool_worker:cast_worker(p2, <<"request2\n">>),
+               timer:sleep(10),
 
-              R2=ppool_worker:call_worker(p2, <<"request2\n">>),
+              ppool_worker:cast_worker(p2, <<"request3\n">>),
+               timer:sleep(10),
+
+              ppool_worker:cast_worker(p2, <<"request4\n">>),
+                timer:sleep(10),
+
+              R2=ppool_worker:cast_worker(p2, <<"request5\n">>),
 
              % ?debugFmt("start worker..~p~n", [R2]),
  
-              ?assert(R2=:={ok, []}),
+              ?assert(R2=:=ok),
 
+               timer:sleep(100),
 
                Res2=sys:get_status(whereis(p2)),
 
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+            % ?debugFmt("process state..~p~n", [Res2]),
 
-              % ?debugFmt("process state..~p~n", [PidMaps2]),
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,Nomore,_}}]}]]} = Res2,
+
+              %% ?debugFmt("process state..~p~n", [PidMaps2]),
 
                 Free2=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps2)),
 
               ?assert(length(Free2)=:=3),
+              ?assert(Nomore=:=2),
 
-            timer:sleep(300),
+            timer:sleep(750),
 
                Res3=sys:get_status(whereis(p2)),
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
+
 
               %%?debugFmt("process state..~p~n", [PidMaps3]),
 
@@ -131,15 +151,25 @@ run_call_tests() ->
       {timeout, 5,
         fun() ->
 
-            {R, ID}=ppool_worker:call_worker(p2, <<"request1\n">>),
+            R=ppool_worker:cast_worker(p5, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
-              Res = ppool_worker:get_result_worker(p2, ID),
+            timer:sleep(10),
+
+              [{worker_stat,ID,
+                            no,_,p5,_,_,
+                            _,
+                            _,
+                            _}] = ets:tab2list(p5),
+
+              ?debugFmt("process state..~p~n", [ID]),
+
+              Res = ppool_worker:get_result_worker(p5, ID),
 
               {ok,[{worker_stat,
                         ID,
-                        _,_,p2,_,Status, Response,
+                        _,_,p5,_,Status, Response,
                         _,
                         undefined}]} = Res,
 
@@ -151,11 +181,11 @@ run_call_tests() ->
             timer:sleep(300),
 
 
-              Res2 = ppool_worker:get_result_worker(p2, ID),
+              Res2 = ppool_worker:get_result_worker(p5, ID),
 
               {ok,[{worker_stat,
                         ID,
-                        _,_,p2,_,Status2, Response2,
+                        _,_,p5,_,Status2, Response2,
                         _,
                         _}]} = Res2,
 
@@ -171,7 +201,7 @@ run_call_tests() ->
       {timeout, 10,
         fun() ->
 
-            spawn(fun() -> ppool_worker:call_worker(p3, <<"request1\n">>) end),
+            spawn(fun() -> ppool_worker:cast_worker(p3, <<"request1\n">>) end),
 
 
            timer:sleep(300),
@@ -199,7 +229,7 @@ run_call_tests() ->
       {timeout, 5,
         fun() ->
 
-            spawn(fun() -> ppool_worker:call_worker(p4, <<"error\n">>) end),
+            spawn(fun() -> ppool_worker:cast_worker(p4, <<"error\n">>) end),
 
            timer:sleep(100),
 
@@ -220,64 +250,6 @@ run_call_tests() ->
               Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=0 end ,PidMaps3)),
 
               ?assert(length(Free3)=:=1)
-
-        end
-     }},
-
-     {"first_call_worker",
-      {timeout, 5,
-        fun() ->
-
-        %% recreate pool
-           ppool:stop_pool(ppool, p4),
-           ppool:start_pool(ppool, {p4, 1, {worker, start_link, []} }),
-
-         P4=ppool_worker:start_all_workers(p4, {{erl_worker, do_ok}, 100}),
-          ?assert(P4=={ok, full_limit}),
-
-
-           R1=ppool_worker:first_call_worker(p4, <<"request1\n">>),
-
-            %%?debugFmt("process state..~p~n", [R1]),
-
-            ?assert(R1=:={ok, call}),
-
-           R2=ppool_worker:first_call_worker(p4, <<"request2\n">>),
-
-             %% ?debugFmt("process state..~p~n", [R2]),
-
-
-              ?assert(R2=:={ok, []})
-
-        end
-     }},
-
-     {"call_cast_worker",
-      {timeout, 5,
-        fun() ->
-
-        %% recreate pool
-           ppool:stop_pool(ppool, p4),
-           ppool:start_pool(ppool, {p4, 1, {worker, start_link, []} }),
-
-         P4=ppool_worker:start_all_workers(p4, {{erl_worker, do_2000_ok}, 300}),
-          ?assert(P4=={ok, full_limit}),
-
-
-
-           R1=ppool_worker:call_cast_worker(p4, no, <<"request1\n">>),
-
-            %% ?debugFmt("process state..~p~n", [R1]),
-
-            ?assert(R1=:={ok, ok}),
-
-            timer:sleep(50),
-
-           R2=ppool_worker:call_cast_worker(p4, no, <<"request2\n">>),
-
-             %%?debugFmt("process state..~p~n", [R2]),
-
-              ?assert(R2=:={ok, []})
 
         end
      }}

@@ -566,23 +566,35 @@ handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids,
       {noreply, State};
 
  
-handle_cast({cast_worker, Msg},  #state{workers_pids=Pids, async=Async}=State) 
+handle_cast({cast_worker, Msg},  #state{name=Name, workers_pids=Pids, async=Async}=State) 
    when Async=:=false ->
 
-   %% get random pid
-   List=maps:keys(Pids),
+    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
-    case length(List) of
-        0 -> ok;
-        L ->
-            Index = rand:uniform(L),
+    ?Trace(Free),
 
-            Pid=lists:nth(Index, List),
+    case maps:keys(Free) of
+          [] -> 
 
-            ?Trace({cast_worker_random, Pid}),
+           ppool_worker:add_nomore_info(Name),
 
-             gen_server:cast(Pid, Msg)
-    end,
+            %% get random pid
+            List=maps:keys(Pids),
+
+                case length(List) of
+                    0 -> ok;
+                    L ->
+                        Index = rand:uniform(L),
+                        Pid=lists:nth(Index, List),
+                        ?Trace({cast_worker_random, Pid}),
+                        gen_server:cast(Pid, Msg)
+                end;
+
+          [P|_] -> 
+
+            ok=gen_server:cast(P, Msg)
+
+      end,
 
       {noreply, State};
 
