@@ -1,13 +1,13 @@
 -module(ppool_worker_call_defer_test).
 -include_lib("eunit/include/eunit.hrl").
 
-exec_call_test_() ->
+exec_call_test_i() ->
     {setup,
      fun() ->
         application:start(ppool),
          %% code:load_abs("test/workers/erl_worker"),
           ppool:start_pool(ppool, {p1, 3, {worker, start_link, []} }),
-          ppool:start_pool(ppool, {p2, 3, {worker, start_link, []} }),
+          ppool:start_pool(ppool, {p2d, 3, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p3, 3, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p4, 1, {worker, start_link, []} }),
           ppool:start_pool(ppool, {p5, 1, {worker, start_link, []} })
@@ -16,7 +16,7 @@ exec_call_test_() ->
      fun(_) ->
 
        ppool:stop_pool(ppool, p1),
-       ppool:stop_pool(ppool, p2),
+       ppool:stop_pool(ppool, p2d),
        ppool:stop_pool(ppool, p3),
        ppool:stop_pool(ppool, p4),
        ppool:stop_pool(ppool, p5),
@@ -31,7 +31,7 @@ exec_call_test_() ->
          P1=ppool_worker:start_all_workers(p1, {{erl_worker, do_ok}, 100}),
           ?assert(P1=={ok, full_limit}),
 
-         P2=ppool_worker:start_all_workers(p2, {{erl_worker, do_2000_ok}, 300}),
+         P2=ppool_worker:start_all_workers(p2d, {{erl_worker, do_2000_ok}, 300}),
 
           ?assert(P2=={ok, full_limit}),
 
@@ -53,7 +53,7 @@ exec_call_test_() ->
          P1=ppool_worker:stop_all_workers(p1),
           ?assert(P1==ok),
 
-         P2=ppool_worker:stop_all_workers(p2),
+         P2=ppool_worker:stop_all_workers(p2d),
           ?assert(P2==ok),
 
          P3=ppool_worker:stop_all_workers(p3),
@@ -94,11 +94,13 @@ run_call_tests() ->
       {timeout, 30,
         fun() ->
 
-            {R, _}=ppool_worker:cast_worker_defer(p2, <<"request1\n">>),
+            {R, _}=ppool_worker:cast_worker_defer(p2d, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
-               Res=sys:get_status(whereis(p2)),
+               timer:sleep(10),
+
+               Res=sys:get_status(whereis(p2d)),
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
 
@@ -108,16 +110,16 @@ run_call_tests() ->
 
               ?assert(length(Free)=:=1),
 
-              ppool_worker:cast_worker_defer(p2, <<"request2\n">>),
+              ppool_worker:cast_worker_defer(p2d, <<"request2\n">>),
                timer:sleep(10),
 
-              ppool_worker:cast_worker_defer(p2, <<"request3\n">>),
+              ppool_worker:cast_worker_defer(p2d, <<"request3\n">>),
                timer:sleep(10),
 
-              ppool_worker:cast_worker_defer(p2, <<"request4\n">>),
+              ppool_worker:cast_worker_defer(p2d, <<"request4\n">>),
                 timer:sleep(10),
 
-            {R2, _}=ppool_worker:cast_worker_defer(p2, <<"request5\n">>),
+            {R2, _}=ppool_worker:cast_worker_defer(p2d, <<"request5\n">>),
 
              % ?debugFmt("start worker..~p~n", [R2]),
  
@@ -125,7 +127,7 @@ run_call_tests() ->
 
                timer:sleep(100),
 
-               Res2=sys:get_status(whereis(p2)),
+               Res2=sys:get_status(whereis(p2d)),
 
             % ?debugFmt("process state..~p~n", [Res2]),
 
@@ -140,7 +142,7 @@ run_call_tests() ->
 
             timer:sleep(750),
 
-               Res3=sys:get_status(whereis(p2)),
+               Res3=sys:get_status(whereis(p2d)),
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
 

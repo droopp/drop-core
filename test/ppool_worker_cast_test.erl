@@ -254,7 +254,45 @@ run_call_tests() ->
               ?assert(length(Free3)=:=1)
 
         end
+     }},
+
+     {"call_all_worker 1 msg",
+      {timeout, 30,
+        fun() ->
+
+            R=ppool_worker:cast_all_workers(p2, <<"request1\n">>),
+
+              ?assert(R=:=ok),
+
+               timer:sleep(10),
+
+               Res=sys:get_status(whereis(p2)),
+
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
+
+                % ?debugFmt("process state..~p~n", [PidMaps]),
+
+                Free=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps)),
+
+              ?assert(length(Free)=:=3),
+
+            timer:sleep(300),
+
+               Res3=sys:get_status(whereis(p2)),
+
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
+
+
+              %%?debugFmt("process state..~p~n", [PidMaps3]),
+
+                Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=1 end ,PidMaps3)),
+
+              ?assert(length(Free3)=:=3)
+
+        end
      }}
+
+
 
     ].
 
