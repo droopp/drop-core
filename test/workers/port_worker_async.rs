@@ -141,6 +141,11 @@ fn run_worker(w: (u32, Sender<u32>, Receiver<String>), sleep: u64){
 
         log(format!("worker {} get message: {}",id, msg));
 
+
+        if msg == "error" {
+            panic!("error occured");
+        }
+
         // do work
         thread::sleep(wait_secs);
 
@@ -166,7 +171,7 @@ fn process(args: Vec<String>){
     let(queue, workers) = pool.get_bus(tx);
 
     //PUB
-    let input = thread::spawn(move|| {
+    thread::spawn(move|| {
         run_reader(queue, rx_status);
     });
  
@@ -192,7 +197,7 @@ fn process(args: Vec<String>){
    }
 
    // join to main
-   input.join().unwrap();
+   //input.join().unwrap();
    status.join().unwrap();
 
    for w in workerh {

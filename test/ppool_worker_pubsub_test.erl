@@ -1,7 +1,7 @@
 -module(ppool_worker_pubsub_test).
 -include_lib("eunit/include/eunit.hrl").
 
-exec_call_test_() ->
+exec_call_test_i() ->
     {setup,
      fun() ->
         application:start(ppool)

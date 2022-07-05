@@ -248,7 +248,7 @@ handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids,
                        list_to_atom(atom_to_list(Name)++"_sup"),
                        [Cmd]),
 
-               {reply, Pid, State};
+               {reply, Pid, State#state{workers_pids=maps:put(Pid, 0, Pids)}};
        false ->
            {reply, full_limit, State}
 
@@ -272,7 +272,7 @@ handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids}=
                        list_to_atom(atom_to_list(Name)++"_sup"),
                        [Cmd]),
 
-               {reply, Pid, State#state{limit=NewLimit} };
+               {reply, Pid, State#state{limit=NewLimit, workers_pids=maps:put(Pid, 0, Pids)}};
 
        false ->
            {reply, full_limit, State#state{limit=NewLimit}}

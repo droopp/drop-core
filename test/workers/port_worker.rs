@@ -41,7 +41,7 @@ fn process(args: Vec<String>){
     log(format!("start working / args={:?}", args));
 
     let sleep = args[0].parse::<u64>().unwrap();
-    let wait_secs = Duration::from_secs(sleep);
+    let wait_secs = Duration::from_millis(sleep);
 
     loop {
 
@@ -51,14 +51,22 @@ fn process(args: Vec<String>){
             break
         }
 
+        if msg == "error" {
+
+            panic!("error occured");
+
+        }
+
         log(format!("get message: {}", msg));
 
         // do work
         thread::sleep(wait_secs);
 
-        send(&msg);
+        let response: String = "ok".to_string();
 
-        log(format!("message send: {}", msg));
+        send(&response);
+
+        log(format!("message send: {}", response));
  
     }
 }

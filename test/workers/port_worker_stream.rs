@@ -48,15 +48,17 @@ fn process(args: Vec<String>){
 
     let secs: u64 = args[0].parse().unwrap();
 
-    let wait_secs = time::Duration::from_secs(secs);
+    let wait_secs = time::Duration::from_millis(secs);
 
 
     loop {
 
         // do work
+        //
+        let response: String = "ok".to_string();
 
-        send(&msg);
-        log(format!("message send: {}", msg));
+        send(&response);
+        log(format!("message send: {}", response));
  
         //wait 
         thread::sleep(wait_secs);
