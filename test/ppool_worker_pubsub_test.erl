@@ -71,7 +71,7 @@ run_call_tests() ->
      {"sub 1 to 1",
         fun() ->
 
-            R=ppool_worker:subscribe(p1, {s1, <<"no">>, all}),
+            R=ppool_worker:subscribe(p1, {s1, <<"no">>, one}),
               ?assert(R=:=ok),
 
             R=ppool_worker:cast_worker(p1, <<"request1\n">>),
@@ -208,6 +208,199 @@ run_call_tests() ->
                ?assert(Res2=:=[<<"ok">>])
 
         end
+     },
+
+
+     {"sub 1 to 1/ sone",
+        fun() ->
+
+            R=ppool_worker:subscribe(p1, {s1, <<"no">>, sone}),
+              ?assert(R=:=ok),
+
+            R=ppool_worker:cast_worker(p1, <<"request1\n">>),
+              ?assert(R=:=ok),
+
+            timer:sleep(50),
+
+              [{worker_stat,_,
+                            no,_,p1,Req,Status,
+                            Res,
+                            _,
+                            _}] = ets:tab2list(p1),
+
+             ?assert(Status=:=ok),
+              ?assert(Req=:=<<"request1\n">>),
+               ?assert(Res=:=[<<"ok">>]),
+
+              [{worker_stat,_,
+                            _,_,s1,Req2,Status2,
+                            Res2,
+                            _,
+                            _}] = ets:tab2list(s1),
+
+             ?assert(Status2=:=ok),
+              ?assert(Req2=:=<<"ok\n">>),
+               ?assert(Res2=:=[<<"ok">>]),
+
+            %% unsubscribe
+
+            R=ppool_worker:unsubscribe(p1, s1),
+              ?assert(R=:=ok),
+
+            R=ppool_worker:cast_worker(p1, <<"request1\n">>),
+              ?assert(R=:=ok),
+
+            timer:sleep(50),
+
+              [_, {worker_stat,_,
+                            no,_,p1,Req,Status,
+                            Res,
+                            _,
+                            _}] = ets:tab2list(p1),
+
+             ?assert(Status=:=ok),
+              ?assert(Req=:=<<"request1\n">>),
+               ?assert(Res=:=[<<"ok">>]),
+
+              [{worker_stat,_,
+                            _,_,s1,Req2,Status2,
+                            Res2,
+                            _,
+                            _}] = ets:tab2list(s1),
+
+             ?assert(Status2=:=ok),
+              ?assert(Req2=:=<<"ok\n">>),
+               ?assert(Res2=:=[<<"ok">>])
+
+        end
+     },
+
+     {"sub 1 to dall",
+        fun() ->
+
+            R=ppool_worker:subscribe(p1, {s2, <<"no">>, dall}),
+              ?assert(R=:=ok),
+
+            R=ppool_worker:cast_worker(p1, <<"request1\n">>),
+              ?assert(R=:=ok),
+
+            timer:sleep(50),
+
+              [{worker_stat,_,
+                            no,_,p1,Req,Status,
+                            Res,
+                            _,
+                            _}] = ets:tab2list(p1),
+
+             ?assert(Status=:=ok),
+              ?assert(Req=:=<<"request1\n">>),
+               ?assert(Res=:=[<<"ok">>]),
+
+              [{worker_stat,_,
+                            _,_,s2,Req2,Status2,
+                            Res2,
+                            _,
+                            _} 
+              ] = ets:tab2list(s2),
+
+             ?assert(Status2=:=ok),
+              ?assert(Req2=:=<<"ok\n">>),
+               ?assert(Res2=:=[<<"ok">>]),
+
+            %% unsubscribe
+
+            R=ppool_worker:unsubscribe(p1, s2),
+              ?assert(R=:=ok),
+
+            R=ppool_worker:cast_worker(p1, <<"request1\n">>),
+              ?assert(R=:=ok),
+
+            timer:sleep(50),
+
+              [_, {worker_stat,_,
+                            no,_,p1,Req,Status,
+                            Res,
+                            _,
+                            _}] = ets:tab2list(p1),
+
+             ?assert(Status=:=ok),
+              ?assert(Req=:=<<"request1\n">>),
+               ?assert(Res=:=[<<"ok">>]),
+
+              [{worker_stat,_,
+                            _,_,s2,Req2,Status2,
+                            Res2,
+                            _,
+                            _}] = ets:tab2list(s2),
+
+             ?assert(Status2=:=ok),
+              ?assert(Req2=:=<<"ok\n">>),
+               ?assert(Res2=:=[<<"ok">>])
+
+        end
+     },
+
+     {"sub 1 to 1 with filter",
+        fun() ->
+
+            R=ppool_worker:subscribe(p1, {s1, <<"ok">>, one}),
+              ?assert(R=:=ok),
+
+            R=ppool_worker:cast_worker(p1, <<"request1\n">>),
+              ?assert(R=:=ok),
+
+            timer:sleep(50),
+
+              [{worker_stat,_,
+                            no,_,p1,Req,Status,
+                            Res,
+                            _,
+                            _}] = ets:tab2list(p1),
+
+             ?assert(Status=:=ok),
+              ?assert(Req=:=<<"request1\n">>),
+               ?assert(Res=:=[<<"ok">>]),
+
+              [{worker_stat,_,
+                            _,_,s1,Req2,Status2,
+                            Res2,
+                            _,
+                            _}] = ets:tab2list(s1),
+
+             ?assert(Status2=:=ok),
+              ?assert(Req2=:=<<"ok\n">>),
+               ?assert(Res2=:=[<<"ok">>])
+
+     end
+
+     },
+     {"sub 1 to 1 with non filter",
+        fun() ->
+
+            R=ppool_worker:subscribe(p1, {s1, <<"nonexist">>, one}),
+              ?assert(R=:=ok),
+
+            R=ppool_worker:cast_worker(p1, <<"request1\n">>),
+              ?assert(R=:=ok),
+
+            timer:sleep(50),
+
+              [{worker_stat,_,
+                            no,_,p1,Req,Status,
+                            Res,
+                            _,
+                            _}] = ets:tab2list(p1),
+
+             ?assert(Status=:=ok),
+              ?assert(Req=:=<<"request1\n">>),
+               ?assert(Res=:=[<<"ok">>]),
+
+              Res2 = ets:tab2list(s1),
+
+             ?assert(Res2=:=[])
+
+     end
+
      }
 
 
