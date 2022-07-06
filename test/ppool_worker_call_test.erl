@@ -173,7 +173,6 @@ run_call_tests() ->
 
             spawn(fun() -> ppool_worker:call_worker(p3, <<"request1\n">>) end),
 
-
            timer:sleep(300),
 
            [{worker_stat,_,_,_,p3,_,R,undefined,_,_}] = ets:tab2list(p3),

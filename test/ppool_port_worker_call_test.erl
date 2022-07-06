@@ -38,8 +38,9 @@ exec_call_test_() ->
           ?assert(P3=={ok, full_limit}),
 
          P4=ppool_worker:start_all_workers(p4, {"./test/workers/port_worker 0 2>/dev/null", 100}),
-          ?assert(P4=={ok, full_limit})
+          ?assert(P4=={ok, full_limit}),
 
+           timer:sleep(200)
 
       end,
       fun(_) ->
@@ -98,10 +99,6 @@ run_call_tests() ->
 
               R2=ppool_worker:call_worker(p2, <<"request2\n">>),
 
-               Res4=sys:get_status(whereis(p2)),
-
-
-              ?debugFmt("start worker..~p~n", [Res4]),
  
               ?assert(R2=:={ok, []}),
 
@@ -110,7 +107,7 @@ run_call_tests() ->
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
 
-              ?debugFmt("process state..~p~n", [PidMaps2]),
+              %% ?debugFmt("process state..~p~n", [PidMaps2]),
 
                 Free2=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps2)),
 
@@ -154,7 +151,6 @@ run_call_tests() ->
 
             timer:sleep(300),
 
-
               Res2 = ppool_worker:get_result_worker(p2, ID),
 
               {ok,[{worker_stat,
@@ -163,7 +159,7 @@ run_call_tests() ->
                         _,
                         _}]} = Res2,
 
-              ?debugFmt("process state..~p~n", [Res2]),
+              %% ?debugFmt("process state..~p~n", [Res2]),
 
               ?assert(Status2=:=ok),
               ?assert(Response2=:=[<<"ok">>])
@@ -176,7 +172,6 @@ run_call_tests() ->
         fun() ->
 
             spawn(fun() -> ppool_worker:call_worker(p3, <<"request1\n">>) end),
-
 
            timer:sleep(300),
 
@@ -202,6 +197,8 @@ run_call_tests() ->
      {"call_worker 1 + error and get result",
       {timeout, 5,
         fun() ->
+
+           timer:sleep(100),
 
             spawn(fun() -> ppool_worker:call_worker(p4, <<"error\n">>) end),
 
@@ -239,6 +236,7 @@ run_call_tests() ->
          P4=ppool_worker:start_all_workers(p4, {"./test/workers/port_worker 0 2>/dev/null", 100}),
           ?assert(P4=={ok, full_limit}),
 
+          timer:sleep(100),
 
            R1=ppool_worker:first_call_worker(p4, <<"request1\n">>),
 
@@ -267,7 +265,7 @@ run_call_tests() ->
          P4=ppool_worker:start_all_workers(p4, {"./test/workers/port_worker 200 2>/dev/null", 300}),
           ?assert(P4=={ok, full_limit}),
 
-
+          timer:sleep(200),
 
            R1=ppool_worker:call_cast_worker(p4, no, <<"request1\n">>),
 

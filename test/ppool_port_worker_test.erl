@@ -1,7 +1,7 @@
 -module(ppool_port_worker_test).
 -include_lib("eunit/include/eunit.hrl").
 
-exec_test_() ->
+exec_test_i() ->
     {setup,
      fun() ->
         application:start(ppool)
@@ -77,8 +77,7 @@ run_tests() ->
 
                 {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
 
-
-                ?assert(PidMaps=:=#{P1 => 0}),
+                ?assert(1=:=length(maps:keys(PidMaps))),
 
              %% create new
              P2=ppool_worker:start_worker(p1, {"./test/workers/port_worker 0 2>/dev/null", 3000}),
@@ -87,9 +86,7 @@ run_tests() ->
 
                 {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
 
-
-                ?assert(PidMaps2=:=#{P1 => 0, P2 => 0})
-
+                ?assert(2=:=length(maps:keys(PidMaps2)))
 
         end
      },
@@ -103,12 +100,12 @@ run_tests() ->
 
                 {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
 
-
-                ?assert(PidMaps=:=#{P1 => 0}),
+                ?assert(maps:keys(PidMaps)=:=[P1]),
 
 
             %% kill process and deregister pid 
             exit(P1, kill),
+
             timer:sleep(50),
 
                Res2=sys:get_status(whereis(p1)),
@@ -117,7 +114,7 @@ run_tests() ->
 
                 {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
 
-                ?assert(PidMaps2=/=#{P1 => 0})
+                ?assert(maps:keys(PidMaps2)=/=[P1])
 
         end
      },
@@ -242,6 +239,9 @@ run_tests() ->
 
                Res2=sys:get_status(whereis(p1)),
 
+                %% ?debugFmt("process state..~p~n", [Res2]),
+
+
                 {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
 
                 ?assert(0=:=length(maps:keys(PidMaps2)))
@@ -262,7 +262,7 @@ run_tests() ->
 
                Res2=sys:get_status(whereis(p1)),
 
-                %% ?debugfmt("process state..~p~n", [res2]),
+                %% ?debugFmt("process state..~p~n", [res2]),
 
                 {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_}}]}]]} = Res2,
 

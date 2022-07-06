@@ -248,7 +248,7 @@ handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids,
                        list_to_atom(atom_to_list(Name)++"_sup"),
                        [Cmd]),
 
-               {reply, Pid, State#state{workers_pids=maps:put(Pid, 0, Pids)}};
+               {reply, Pid, State#state{workers_pids=maps:put(Pid, -1, Pids)}};
        false ->
            {reply, full_limit, State}
 
@@ -272,7 +272,7 @@ handle_call({start_worker, Cmd, C}, _From, #state{name=Name, workers_pids=Pids}=
                        list_to_atom(atom_to_list(Name)++"_sup"),
                        [Cmd]),
 
-               {reply, Pid, State#state{limit=NewLimit, workers_pids=maps:put(Pid, 0, Pids)}};
+               {reply, Pid, State#state{limit=NewLimit, workers_pids=maps:put(Pid, -1, Pids)}};
 
        false ->
            {reply, full_limit, State#state{limit=NewLimit}}
@@ -333,7 +333,7 @@ handle_call({stop_all_workers, C}, _From,
     case C > 0 andalso Cr - C > 0 of
          true -> 
 
-           Free=maps:filter(fun(_K, V) -> V=:=2 end ,Pids),
+           Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
 
             ?Trace({stop, split(maps:keys(Free), Cr-C)}),
 
@@ -375,7 +375,7 @@ handle_call({call_worker, _Msg}, _From, #state{async=Async}=State)
 handle_call({call_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
   when Async =:= false ->
     
-    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
+    Free=maps:filter(fun(_K, V) -> V=/=2 andalso V=/=-1 end ,Pids),
 
     ?Trace(Free),
 
@@ -394,7 +394,7 @@ handle_call({call_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=St
 handle_call({first_call_worker, Msg}, _From, 
             #state{name=Name, workers_pids=Pids}=State) ->
     
-    Free=maps:filter(fun(_K, V) -> V=/=2 end, Pids),
+    Free=maps:filter(fun(_K, V) -> V=/=2 andalso V=/=-1 end, Pids),
 
      case ets:first(Name) of
 
@@ -424,7 +424,7 @@ handle_call({call_cast_worker, _Msg}, _From, #state{async=Async}=State)
 handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
   when Async =:= false ->
  
-    Free=maps:filter(fun(_K, V) -> V=/=2 end, Pids),
+    Free=maps:filter(fun(_K, V) -> V=/=2 andalso V=/=-1 end, Pids),
 
     ?Trace(Free),
 
@@ -467,7 +467,8 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
                                                        async=Async}=State) 
     when Async =:=false ->
     
-    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
+    Free=maps:filter(fun(_K, V) -> V=/=2 andalso V=/=-1 end ,Pids),
+    Pidss2=maps:filter(fun(_K, V) -> V=/=-1 end ,Pids),
 
     ?Trace({cast_worker_defer, From, self(), Msg, Free}),
 
@@ -476,7 +477,7 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
 
            ppool_worker:add_nomore_info(Name),
 
-           case maps:keys(Pids) of
+           case maps:keys(Pidss2) of
                [] ->
                    {reply, {error, noproc}, State};
 
@@ -540,7 +541,7 @@ handle_cast({cast_worker, {_, _, Msg}}, #state{name=Name, workers_pids=Pids,
 handle_cast({cast_worker, Msg},  #state{name=Name, workers_pids=Pids, async=Async}=State) 
    when Async=:=false ->
 
-    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
+    Free=maps:filter(fun(_K, V) -> V=/=2 andalso V=/=-1 end ,Pids),
 
     ?Trace(Free),
 
