@@ -1,11 +1,10 @@
--module(ppool_worker_cast_test).
+-module(ppool_port_worker_cast_test).
 -include_lib("eunit/include/eunit.hrl").
 
--define(WORKER, worker).
--define(MOD1, {{erl_worker, do_ok}, 100}).
--define(MOD2, {{erl_worker, do_2000_ok}, 300}).
--define(MOD3, {{erl_worker, do_2000_ok}, 100}).
-
+-define(WORKER, port_worker).
+-define(MOD1, {"./test/workers/port_worker 0 2>/dev/null", 100}).
+-define(MOD2, {"./test/workers/port_worker 200 2>/dev/null", 300}).
+-define(MOD3, {"./test/workers/port_worker 200 2>/dev/null", 100}).
 
 exec_call_test_() ->
     {setup,
