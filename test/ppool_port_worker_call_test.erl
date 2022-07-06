@@ -1,15 +1,21 @@
 -module(ppool_port_worker_call_test).
 -include_lib("eunit/include/eunit.hrl").
 
+-define(WORKER, port_worker).
+-define(MOD1, {"./test/workers/port_worker 0 2>/dev/null", 100}).
+-define(MOD2, {"./test/workers/port_worker 200 2>/dev/null", 300}).
+-define(MOD3, {"./test/workers/port_worker 200 2>/dev/null", 100}).
+
+
 exec_call_test_() ->
     {setup,
      fun() ->
         application:start(ppool),
 
-          ppool:start_pool(ppool, {p1, 3, {port_worker, start_link, []} }),
-          ppool:start_pool(ppool, {p2, 3, {port_worker, start_link, []} }),
-          ppool:start_pool(ppool, {p3, 3, {port_worker, start_link, []} }),
-          ppool:start_pool(ppool, {p4, 1, {port_worker, start_link, []} })
+          ppool:start_pool(ppool, {p1, 3, {?WORKER, start_link, []} }),
+          ppool:start_pool(ppool, {p2, 3, {?WORKER, start_link, []} }),
+          ppool:start_pool(ppool, {p3, 3, {?WORKER, start_link, []} }),
+          ppool:start_pool(ppool, {p4, 1, {?WORKER, start_link, []} })
 
      end,
      fun(_) ->
@@ -26,18 +32,18 @@ exec_call_test_() ->
       foreach,
       fun() ->
 
-         P1=ppool_worker:start_all_workers(p1, {"./test/workers/port_worker 0 2>/dev/null", 100}),
+         P1=ppool_worker:start_all_workers(p1, ?MOD1),
           ?assert(P1=={ok, full_limit}),
 
-         P2=ppool_worker:start_all_workers(p2, {"./test/workers/port_worker 200 2>/dev/null", 300}),
+         P2=ppool_worker:start_all_workers(p2, ?MOD2),
 
           ?assert(P2=={ok, full_limit}),
 
-         P3=ppool_worker:start_all_workers(p3, {"./test/workers/port_worker 200 2>/dev/null", 100}),
+         P3=ppool_worker:start_all_workers(p3, ?MOD3),
 
           ?assert(P3=={ok, full_limit}),
 
-         P4=ppool_worker:start_all_workers(p4, {"./test/workers/port_worker 0 2>/dev/null", 100}),
+         P4=ppool_worker:start_all_workers(p4, ?MOD1),
           ?assert(P4=={ok, full_limit}),
 
            timer:sleep(200)
@@ -58,13 +64,13 @@ exec_call_test_() ->
           ?assert(P4==ok)
 
       end,
-      run_call_tests()
+      run_tests()
 
      }
     }.
 
 
-run_call_tests() ->
+run_tests() ->
     [
      {"call_worker 1 msg",
         fun() ->
@@ -198,8 +204,6 @@ run_call_tests() ->
       {timeout, 5,
         fun() ->
 
-           timer:sleep(100),
-
             spawn(fun() -> ppool_worker:call_worker(p4, <<"error\n">>) end),
 
            timer:sleep(100),
@@ -231,9 +235,9 @@ run_call_tests() ->
 
         %% recreate pool
            ppool:stop_pool(ppool, p4),
-           ppool:start_pool(ppool, {p4, 1, {port_worker, start_link, []} }),
+           ppool:start_pool(ppool, {p4, 1, {?WORKER, start_link, []} }),
 
-         P4=ppool_worker:start_all_workers(p4, {"./test/workers/port_worker 0 2>/dev/null", 100}),
+         P4=ppool_worker:start_all_workers(p4, ?MOD1),
           ?assert(P4=={ok, full_limit}),
 
           timer:sleep(100),
@@ -260,9 +264,9 @@ run_call_tests() ->
 
         %% recreate pool
            ppool:stop_pool(ppool, p4),
-           ppool:start_pool(ppool, {p4, 1, {port_worker, start_link, []} }),
+           ppool:start_pool(ppool, {p4, 1, {?WORKER, start_link, []} }),
 
-         P4=ppool_worker:start_all_workers(p4, {"./test/workers/port_worker 200 2>/dev/null", 300}),
+         P4=ppool_worker:start_all_workers(p4, ?MOD2),
           ?assert(P4=={ok, full_limit}),
 
           timer:sleep(200),
