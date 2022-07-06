@@ -146,6 +146,7 @@ fn run_worker(w: (u32, Sender<u32>, Receiver<String>), sleep: u64){
             panic!("error occured");
         }
 
+
         // do work
         thread::sleep(wait_secs);
 
