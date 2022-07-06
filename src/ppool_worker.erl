@@ -468,14 +468,14 @@ handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=P
     when Async =:=false ->
     
     Free=maps:filter(fun(_K, V) -> V=/=2 andalso V=/=-1 end ,Pids),
-    Pidss2=maps:filter(fun(_K, V) -> V=/=-1 end ,Pids),
-
     ?Trace({cast_worker_defer, From, self(), Msg, Free}),
 
     case maps:keys(Free) of
           [] -> 
 
            ppool_worker:add_nomore_info(Name),
+
+           Pidss2=maps:filter(fun(_K, V) -> V=/=-1 end ,Pids),
 
            case maps:keys(Pidss2) of
                [] ->

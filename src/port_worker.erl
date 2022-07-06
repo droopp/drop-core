@@ -194,6 +194,11 @@ handle_cast({msg_defer, R, Msg, From}, #state{master=N, ev=E, cmd=Cmd,
 
                {stop, port_timeout, State};
 
+           {error, _, _} -> 
+               From!{response, error},
+
+               {stop, error, State};
+
            Res -> 
                From!{response, Res},
 

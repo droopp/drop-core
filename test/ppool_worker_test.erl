@@ -77,7 +77,7 @@ run_tests() ->
      {"check pid registered",
         fun() ->
 
-            P1=ppool_worker:start_worker(p1, ?MOD),
+            _=ppool_worker:start_worker(p1, ?MOD),
 
                Res=sys:get_status(whereis(p1)),
 
@@ -87,7 +87,7 @@ run_tests() ->
                 ?assert(1=:=length(maps:keys(PidMaps))),
 
              %% create new
-             P2=ppool_worker:start_worker(p1, ?MOD),
+             _=ppool_worker:start_worker(p1, ?MOD),
  
                Res2=sys:get_status(whereis(p1)),
 
