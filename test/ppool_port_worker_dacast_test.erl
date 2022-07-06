@@ -1,11 +1,10 @@
--module(ppool_worker_dcast_test).
+-module(ppool_port_worker_dacast_test).
 -include_lib("eunit/include/eunit.hrl").
 
--define(WORKER, worker).
-
--define(MOD1, {{erl_worker, do_ok}, 100}).
--define(MOD2, {{erl_worker, do_2000_ok}, 300}).
--define(MOD3, {{erl_worker, do_2000_ok}, 100}).
+-define(WORKER, port_worker).
+-define(MOD1, {"./test/workers/port_worker 0 2>/dev/null", 100}).
+-define(MOD2, {"./test/workers/port_worker 200 2>/dev/null", 300}).
+-define(MOD3, {"./test/workers/port_worker 200 2>/dev/null", 100}).
 
 
 exec_call_test_() ->
@@ -57,7 +56,6 @@ exec_call_test_() ->
 
           timer:sleep(200)
 
-
       end,
       fun(_) ->
 
@@ -79,12 +77,13 @@ exec_call_test_() ->
      }
     }.
 
+
 run_tests() ->
     [
      {"call_worker 1 msg",
         fun() ->
 
-            R=ppool_worker:dcast_worker(p1, no, <<"request\n">>),
+            R=ppool_worker:dacast_worker(p1, no, <<"request\n">>),
 
               ?assert(R=:=ok)
 
@@ -95,7 +94,7 @@ run_tests() ->
       {timeout, 30,
         fun() ->
 
-            R=ppool_worker:dcast_worker(p2, no, <<"request1\n">>),
+            R=ppool_worker:dacast_worker(p2, no, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
@@ -105,22 +104,22 @@ run_tests() ->
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
 
-                %% ?debugFmt("process state..~p~n", [PidMaps]),
+                ?debugFmt("process state..~p~n", [PidMaps]),
 
                 Free=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps)),
 
               ?assert(length(Free)=:=1),
 
-              ppool_worker:dcast_worker(p2, no, <<"request2\n">>),
+              ppool_worker:dacast_worker(p2, no, <<"request2\n">>),
                timer:sleep(10),
 
-              ppool_worker:dcast_worker(p2, no, <<"request3\n">>),
+              ppool_worker:dacast_worker(p2, no, <<"request3\n">>),
                timer:sleep(10),
 
-              ppool_worker:dcast_worker(p2, no, <<"request4\n">>),
+              ppool_worker:dacast_worker(p2, no, <<"request4\n">>),
                 timer:sleep(10),
 
-              R2=ppool_worker:dcast_worker(p2, no, <<"request5\n">>),
+              R2=ppool_worker:dacast_worker(p2, no, <<"request5\n">>),
 
              % ?debugFmt("start worker..~p~n", [R2]),
  
@@ -161,7 +160,7 @@ run_tests() ->
       {timeout, 5,
         fun() ->
 
-            R=ppool_worker:dcast_worker(p5, no, <<"request1\n">>),
+            R=ppool_worker:dacast_worker(p5, no, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
@@ -211,7 +210,7 @@ run_tests() ->
       {timeout, 10,
         fun() ->
 
-            spawn(fun() -> ppool_worker:dcast_worker(p3, no, <<"request1\n">>) end),
+            spawn(fun() -> ppool_worker:dacast_worker(p3, no, <<"request1\n">>) end),
 
 
            timer:sleep(300),
@@ -239,7 +238,7 @@ run_tests() ->
       {timeout, 5,
         fun() ->
 
-            spawn(fun() -> ppool_worker:dcast_worker(p4, no, <<"error\n">>) end),
+            spawn(fun() -> ppool_worker:dacast_worker(p4, no, <<"error\n">>) end),
 
            timer:sleep(100),
 
