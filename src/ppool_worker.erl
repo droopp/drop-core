@@ -330,23 +330,36 @@ handle_call({stop_all_workers, C}, _From,
 
     ?Trace({stop_all_workers_async, Cr, C}),
 
-    case C > 0 andalso Cr - C > 0 of
-         true -> 
+    Free=maps:filter(fun(_K, V) -> V=/=-1 end ,Pids),
 
-           Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
-
-            ?Trace({stop, split(maps:keys(Free), Cr-C)}),
+    case C=:=0 of
+        true ->
 
              lists:foreach(fun(Pid) ->
-				   ppool_worker:set_status_worker(Name, Pid, 0),
-                                   port_command(maps:get(Pid, Ports), <<"stop_async_worker\n">>)
-
-                                  end, 
-                                   split(maps:keys(Free), Cr-C)
+				              ppool_worker:set_status_worker(Name, Pid, 0),
+                              port_command(maps:get(Pid, Ports), <<"stop_async_worker\n">>)
+                           end, 
+                           maps:keys(Free)
                            );
-         false ->
-             ok
-     end, 
+
+        false ->
+
+            case C > 0 andalso Cr - C > 0 of
+                true -> 
+
+                   ?Trace({stop, split(maps:keys(Free), Cr-C)}),
+
+                    lists:foreach(fun(Pid) ->
+				                    ppool_worker:set_status_worker(Name, Pid, 0),
+                                   port_command(maps:get(Pid, Ports), <<"stop_async_worker\n">>)
+                                  end, 
+                                  split(maps:keys(Free), Cr-C)
+                                 );
+                false ->
+                    ok
+            end
+
+       end,
 
 	   {reply, ok, State};
 

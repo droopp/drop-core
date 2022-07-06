@@ -137,23 +137,40 @@ fn run_worker(w: (u32, Sender<u32>, Receiver<String>), sleep: u64){
     loop {
 
         //read message
-        let msg = rx.recv().unwrap();
+        let raw_msg = rx.recv().unwrap();
 
-        log(format!("worker {} get message: {}",id, msg));
+        if raw_msg == "stop_async_worker" {
+            send(&raw_msg);
+            break;
+        }
+ 
+        let mut msg_iter = raw_msg.split("::");
+        let msg_id = msg_iter.next().unwrap().to_string();
 
+        if msg_id == "" {
+            panic!("msg_id not found");
+        }
+
+
+
+        let msgv: Vec<String> = msg_iter.map(|x|{x.to_string()}).collect();
+        let msg = msgv.join("::");
+
+        log(format!("worker {} get msg_id {} message: {}",id, msg_id,  msg));
 
         if msg == "error" {
             panic!("error occured");
         }
 
-
         // do work
         thread::sleep(wait_secs);
 
-        // send message
-        send(&msg);
+        let result: String = format!("{}::{}", msg_id, "ok");
 
-        log(format!("message send: {}", msg));
+        // send message
+        send(&result);
+
+        log(format!("message send: {}", result));
 
         // send done message to status
         tx.send(id).unwrap();
