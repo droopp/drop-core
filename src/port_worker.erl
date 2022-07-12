@@ -371,7 +371,7 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
            	    ?Trace({msg_defer_async_response, N, DRef, Response}),
 
                 MsgL = case os:getenv("ETS_REQ_RES", "yes") of
-                            "yes" -> Response;
+                            "yes" -> [Response];
                             "no" -> no
                         end,
 

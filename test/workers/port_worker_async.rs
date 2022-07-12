@@ -132,7 +132,7 @@ fn run_worker(w: (u32, Sender<u32>, Receiver<String>), sleep: u64){
     //init / register status
     tx.send(id).unwrap();
  
-    let wait_secs = time::Duration::from_secs(sleep);
+    let wait_secs = time::Duration::from_millis(sleep);
 
     loop {
 
@@ -150,8 +150,6 @@ fn run_worker(w: (u32, Sender<u32>, Receiver<String>), sleep: u64){
         if msg_id == "" {
             panic!("msg_id not found");
         }
-
-
 
         let msgv: Vec<String> = msg_iter.map(|x|{x.to_string()}).collect();
         let msg = msgv.join("::");
