@@ -174,15 +174,21 @@ run_tests() ->
 
               ?assert(R=:=ok),
 
-            timer:sleep(10),
+            timer:sleep(50),
 
               %% ?debugFmt("process state..~p~n", [ets:tab2list(p5_async)]),
+
+              Arr = ets:tab2list(p5_async),
 
               [{worker_stat,ID,
                             no,_,p5_async,_,_,
                             _,
                             _,
-                            _}, _] = ets:tab2list(p5_async),
+                            _}] = lists:filter(fun(I)-> case I of 
+                                                            {_,_,_,_,_,<<"request1\n">>,_,_,_,_} -> true; 
+                                                            _ -> false 
+                                                        end 
+                                               end, Arr), 
 
               %% ?debugFmt("process state..~p~n", [ID]),
 
@@ -210,46 +216,10 @@ run_tests() ->
                         _,
                         _}]} = Res2,
 
-              %% ?debugFmt("process state..~p~n", [Res2]),
+              ?debugFmt("process state..~p~n", [Res2]),
 
               ?assert(Status2=:=ok),
               ?assert(Response2=:=[<<"ok">>])
-
-        end
-     }},
-
-     {"call_worker 1 + timeout and get result",
-      {timeout, 10,
-        fun() ->
-
-           ppool_worker:cast_worker_defer(p3_async, <<"request1\n">>),
-
-
-           timer:sleep(300),
-
-           ?debugFmt("process state..~p~n", [ets:tab2list(p3_async)]),
-
-
-           [_,_,_,{worker_stat,_,_,_,p3_async,_,R,undefined,_,_}] = ets:tab2list(p3_async),
-
-              ?assert(R=:=timeout),
-
-            timer:sleep(500),
-
-              receive
-                {response, ResE} ->
-                        ?assert(ResE=:=timeout)
-              end,
-
-               Res3=sys:get_status(whereis(p3_async)),
-
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
-
-              %% ?debugFmt("process state..~p~n", [PidMaps3]),
-
-                Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps3)),
-
-              ?assert(length(Free3)=:=3)
 
         end
      }},
@@ -262,23 +232,21 @@ run_tests() ->
 
            timer:sleep(100),
 
-            [{worker_stat, _,_,_,p4_async,_,R,_,_,_}] = ets:tab2list(p4_async),
+              Arr = ets:tab2list(p4_async),
 
-              %% ?debugFmt("process state..~p~n", [R]),
+              [{worker_stat,_,
+                            no,_,p4_async,_,R,
+                            _,
+                            _,
+                            _}] = lists:filter(fun(I)-> case I of 
+                                                            {_,_,_,_,_,<<"start\n">>,_,_,_,_} -> true; 
+                                                            _ -> false 
+                                                        end 
+                                               end, Arr), 
 
               ?assert(R=:=error),
 
               timer:sleep(500),
-
-              receive
-                {response, ResE} ->
-
-                   ?debugFmt("process state..~p~n", [ResE]),
-
-
-                        ?assert(ResE=:=error)
-
-              end,
 
                Res3=sys:get_status(whereis(p4_async)),
 
@@ -286,7 +254,7 @@ run_tests() ->
 
               ?debugFmt("process state..~p~n", [PidMaps3]),
 
-              Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=0 end ,PidMaps3)),
+              Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps3)),
 
               ?assert(length(Free3)=:=1)
 
