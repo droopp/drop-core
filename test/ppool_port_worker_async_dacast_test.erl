@@ -1,4 +1,4 @@
--module(ppool_port_worker_async_cast_test).
+-module(ppool_port_worker_async_dacast_test).
 -include_lib("eunit/include/eunit.hrl").
 
 -define(WORKER, port_worker).
@@ -6,7 +6,8 @@
 -define(MOD2, {"./test/workers/port_worker_async 1 200 2>/dev/null", 300}).
 -define(MOD3, {"./test/workers/port_worker_async 1 200 2>/dev/null", 100}).
 
-exec_call_test_i() ->
+
+exec_call_test_() ->
     {setup,
      fun() ->
         application:start(ppool),
@@ -53,8 +54,7 @@ exec_call_test_i() ->
 
           ?assert(P5=={ok, full_limit}),
 
-          timer:sleep(200)
-
+          timer:sleep(400)
 
       end,
       fun(_) ->
@@ -83,7 +83,7 @@ run_tests() ->
      {"call_worker 1 msg",
         fun() ->
 
-            R=ppool_worker:cast_worker(p1_async, <<"request\n">>),
+            R=ppool_worker:dacast_worker(p1_async, no, <<"request\n">>),
 
               ?assert(R=:=ok)
 
@@ -94,32 +94,32 @@ run_tests() ->
       {timeout, 30,
         fun() ->
 
-            R=ppool_worker:cast_worker(p2_async, <<"request1\n">>),
+            R=ppool_worker:dacast_worker(p2_async, no, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
-               timer:sleep(10),
+              timer:sleep(50),
 
                Res=sys:get_status(whereis(p2_async)),
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
 
-               %% ?debugFmt("process state..~p~n", [PidMaps]),
+              %% ?debugFmt("process state..~p~n", [PidMaps]),
 
                 Free=maps:keys(maps:filter(fun(_K, V) -> V=:=3 end ,PidMaps)),
 
               ?assert(length(Free)=:=1),
 
-              ppool_worker:cast_worker(p2_async, <<"request2\n">>),
+              ppool_worker:dacast_worker(p2_async, no, <<"request2\n">>),
                timer:sleep(10),
 
-              ppool_worker:cast_worker(p2_async, <<"request3\n">>),
+              ppool_worker:dacast_worker(p2_async, no, <<"request3\n">>),
                timer:sleep(10),
 
-              ppool_worker:cast_worker(p2_async, <<"request4\n">>),
+              ppool_worker:dacast_worker(p2_async, no, <<"request4\n">>),
                 timer:sleep(10),
 
-              R2=ppool_worker:cast_worker(p2_async, <<"request5\n">>),
+              R2=ppool_worker:dacast_worker(p2_async, no, <<"request5\n">>),
 
              % ?debugFmt("start worker..~p~n", [R2]),
  
@@ -160,7 +160,7 @@ run_tests() ->
       {timeout, 5,
         fun() ->
 
-            R=ppool_worker:cast_worker(p5_async, <<"request1\n">>),
+            R=ppool_worker:dacast_worker(p5_async, no, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
@@ -213,16 +213,60 @@ run_tests() ->
         end
      }},
 
+     {"call_worker 1 + timeout and get result",
+      {timeout, 10,
+        fun() ->
+
+            spawn(fun() -> ppool_worker:dacast_worker(p3_async, no, <<"request1\n">>) end),
+
+           timer:sleep(100),
+
+            Arr = ets:tab2list(p3_async),
+
+              %% ?debugFmt("process state..~p~n", [Arr]),
+
+              [{worker_stat,_,
+                            _,_,p3_async,_,R,
+                            _,
+                            _,
+                            _}] = lists:filter(fun(I)-> case I of 
+                                                            {_,_,_,_,_,<<"request1\n">>,_,_,_,_} -> true; 
+                                                            _ -> false 
+                                                        end 
+                                               end, Arr), 
+
+
+              ?debugFmt("process state..~p~n", [R]),
+
+              ?assert(R=:=running),
+
+            timer:sleep(500),
+
+               Res3=sys:get_status(whereis(p3_async)),
+
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
+
+              %% ?debugFmt("process state..~p~n", [PidMaps3]),
+
+                Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps3)),
+
+              ?assert(length(Free3)=:=3)
+
+        end
+     }},
+
      {"call_worker 1 + error and get result",
       {timeout, 5,
         fun() ->
 
-            spawn(fun() -> ppool_worker:cast_worker(p4_async, <<"error\n">>) end),
+            spawn(fun() -> ppool_worker:dacast_worker(p4_async, no, <<"error\n">>) end),
 
            timer:sleep(100),
 
 
             Arr = ets:tab2list(p4_async),
+
+              %% ?debugFmt("process state..~p~n", [Arr]),
 
               [{worker_stat,_,
                             _,_,p4_async,_,R,
@@ -250,42 +294,6 @@ run_tests() ->
               Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps3)),
 
               ?assert(length(Free3)=:=1)
-
-        end
-     }},
-
-     {"call_all_worker 1 msg",
-      {timeout, 30,
-        fun() ->
-
-            R=ppool_worker:cast_all_workers(p2_async, <<"request1\n">>),
-
-              ?assert(R=:=ok),
-
-               timer:sleep(10),
-
-               Res=sys:get_status(whereis(p2_async)),
-
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
-
-                % ?debugFmt("process state..~p~n", [PidMaps]),
-
-                Free=maps:keys(maps:filter(fun(_K, V) -> V=:=3 end ,PidMaps)),
-
-              ?assert(length(Free)=:=3),
-
-            timer:sleep(300),
-
-               Res3=sys:get_status(whereis(p2_async)),
-
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
-
-
-              %%?debugFmt("process state..~p~n", [PidMaps3]),
-
-                Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps3)),
-
-              ?assert(length(Free3)=:=3)
 
         end
      }}
