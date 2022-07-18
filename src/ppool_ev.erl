@@ -200,33 +200,8 @@ terminate(_Reason, _State) ->
 
 
 call_worker0(Pid, R, Msg) ->
-
-    case ppool_worker:call_cast_worker(Pid, R, Msg) of
-        
-        {ok, []} -> 
-            %% notify system 
-            ppool_worker:add_nomore_info(Pid),
-            %%%%%%
-
-            ppool_worker:cast_worker(Pid, R, Msg);
-
-             {ok, _Res} -> ok
-
-         end.
+    ppool_worker:cast_worker(Pid, R, Msg).
 
 
 call_worker(Pid, R, Msg) ->
-
-         case ppool_worker:call_cast_worker(Pid, R, Msg) of
-             {ok, []} -> 
-
-                %% notify system 
-                ppool_worker:add_nomore_info(Pid),
-                %%%%%%
-
-                 ppool_worker:dcast_worker(Pid, R, Msg);
-
-             {ok, _Res} -> ok
-
-         end.
-
+    ppool_worker:dcast_worker(Pid, R, Msg).

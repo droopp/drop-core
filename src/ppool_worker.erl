@@ -430,9 +430,11 @@ handle_call({first_call_worker, Msg}, _From,
       end;
 
 
-handle_call({call_cast_worker, _Msg}, _From, #state{async=Async}=State) 
+handle_call({call_cast_worker, _Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
   when Async =:= true ->
+
  	{reply, {ok, []}, State};
+
 
 handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
   when Async =:= false ->

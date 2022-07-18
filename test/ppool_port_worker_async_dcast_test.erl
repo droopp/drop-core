@@ -1,4 +1,4 @@
--module(ppool_port_worker_async_dacast_test).
+-module(ppool_port_worker_async_dcast_test).
 -include_lib("eunit/include/eunit.hrl").
 
 -define(WORKER, port_worker).
@@ -83,7 +83,7 @@ run_tests() ->
      {"call_worker 1 msg",
         fun() ->
 
-            R=ppool_worker:dacast_worker(p1_async, no, <<"request\n">>),
+            R=ppool_worker:dcast_worker(p1_async, no, <<"request\n">>),
 
               ?assert(R=:=ok)
 
@@ -94,7 +94,7 @@ run_tests() ->
       {timeout, 30,
         fun() ->
 
-            R=ppool_worker:dacast_worker(p2_async, no, <<"request1\n">>),
+            R=ppool_worker:dcast_worker(p2_async, no, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
@@ -110,16 +110,16 @@ run_tests() ->
 
               ?assert(length(Free)=:=1),
 
-              ppool_worker:dacast_worker(p2_async, no, <<"request2\n">>),
+              ppool_worker:dcast_worker(p2_async, no, <<"request2\n">>),
                timer:sleep(10),
 
-              ppool_worker:dacast_worker(p2_async, no, <<"request3\n">>),
+              ppool_worker:dcast_worker(p2_async, no, <<"request3\n">>),
                timer:sleep(10),
 
-              ppool_worker:dacast_worker(p2_async, no, <<"request4\n">>),
+              ppool_worker:dcast_worker(p2_async, no, <<"request4\n">>),
                 timer:sleep(10),
 
-              R2=ppool_worker:dacast_worker(p2_async, no, <<"request5\n">>),
+              R2=ppool_worker:dcast_worker(p2_async, no, <<"request5\n">>),
 
              % ?debugFmt("start worker..~p~n", [R2]),
  
@@ -160,7 +160,7 @@ run_tests() ->
       {timeout, 5,
         fun() ->
 
-            R=ppool_worker:dacast_worker(p5_async, no, <<"request1\n">>),
+            R=ppool_worker:dcast_worker(p5_async, no, <<"request1\n">>),
 
               ?assert(R=:=ok),
 
@@ -217,7 +217,7 @@ run_tests() ->
       {timeout, 10,
         fun() ->
 
-            spawn(fun() -> ppool_worker:dacast_worker(p3_async, no, <<"request1\n">>) end),
+            spawn(fun() -> ppool_worker:dcast_worker(p3_async, no, <<"request1\n">>) end),
 
            timer:sleep(100),
 
@@ -259,7 +259,7 @@ run_tests() ->
       {timeout, 5,
         fun() ->
 
-            spawn(fun() -> ppool_worker:dacast_worker(p4_async, no, <<"error\n">>) end),
+            spawn(fun() -> ppool_worker:dcast_worker(p4_async, no, <<"error\n">>) end),
 
            timer:sleep(100),
 
