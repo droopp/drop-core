@@ -234,6 +234,8 @@ run_tests() ->
 
               Arr = ets:tab2list(p4_async),
 
+              ?debugFmt("process state..~p~n", [Arr]),
+
               [{worker_stat,_,
                             no,_,p4_async,_,R,
                             _,
@@ -252,7 +254,7 @@ run_tests() ->
 
               {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
 
-              ?debugFmt("process state..~p~n", [PidMaps3]),
+              %% ?debugFmt("process state..~p~n", [PidMaps3]),
 
               Free3=maps:keys(maps:filter(fun(_K, V) -> V=:=2 end ,PidMaps3)),
 

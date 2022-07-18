@@ -404,12 +404,16 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
 
             {error, Status, Err} ->
 
-                true=ets:update_element(N, Ref, [
+                Arr = ets:tab2list(N),
+
+                ?Trace({err_to_update, Arr}),
+
+                [ets:update_element(N, K#worker_stat.ref, [
                                  {#worker_stat.status, error},
                                  {#worker_stat.result, Status},
                                  {#worker_stat.time_start, os:timestamp()},
                                  {#worker_stat.time_end, os:timestamp()}
-                                ]),
+                                ]) || K <-Arr, K#worker_stat.status =:=running],
 
                  Msg2=erlang:list_to_binary(["system::error::", 
                       atom_to_list(node()),"::",
