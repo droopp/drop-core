@@ -69,7 +69,11 @@ exec_call_test_() ->
           ?assert(P3==ok),
 
          P4=ppool_worker:stop_all_workers(p4_async),
-          ?assert(P4==ok)
+          ?assert(P4==ok),
+
+          timer:sleep(400)
+
+
 
       end,
       run_tests()

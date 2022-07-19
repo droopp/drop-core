@@ -6,7 +6,7 @@
 
 
 
-exec_test_() ->
+exec_test_i() ->
     {setup,
      fun() ->
         application:start(ppool)
