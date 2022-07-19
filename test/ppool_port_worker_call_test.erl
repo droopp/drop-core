@@ -7,7 +7,7 @@
 -define(MOD3, {"./test/workers/port_worker 200 2>/dev/null", 100}).
 
 
-exec_call_test_i() ->
+exec_call_test_() ->
     {setup,
      fun() ->
         application:start(ppool),
@@ -252,36 +252,6 @@ run_tests() ->
 
              %% ?debugFmt("process state..~p~n", [R2]),
 
-
-              ?assert(R2=:={ok, []})
-
-        end
-     }},
-
-     {"call_cast_worker",
-      {timeout, 5,
-        fun() ->
-
-        %% recreate pool
-           ppool:stop_pool(ppool, p4),
-           ppool:start_pool(ppool, {p4, 1, {?WORKER, start_link, []} }),
-
-         P4=ppool_worker:start_all_workers(p4, ?MOD2),
-          ?assert(P4=={ok, full_limit}),
-
-          timer:sleep(200),
-
-           R1=ppool_worker:call_cast_worker(p4, no, <<"request1\n">>),
-
-            %% ?debugFmt("process state..~p~n", [R1]),
-
-            ?assert(R1=:={ok, ok}),
-
-            timer:sleep(50),
-
-           R2=ppool_worker:call_cast_worker(p4, no, <<"request2\n">>),
-
-             %%?debugFmt("process state..~p~n", [R2]),
 
               ?assert(R2=:={ok, []})
 

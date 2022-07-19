@@ -20,7 +20,6 @@
          call_worker/2,
          call_worker/3,
          first_call_worker/2,
-         call_cast_worker/3,
 
          cast_worker/2,
          cast_worker/3,
@@ -167,14 +166,6 @@ call_worker(Name, Msg) ->
 call_worker(Name, Ref, Msg) ->
     gen_server:call(Name, {call_worker, {msg, Ref, Msg}}).
   
-
-call_cast_worker(Name, Ref, Msg) ->
-
-    try gen_server:call(Name, {call_cast_worker, {msg, Ref, Msg}}) of
-        R -> R
-    catch
-        _:_ -> {ok, []}
-    end.
 
 first_call_worker(Name, Msg) ->
     gen_server:call(Name, {first_call_worker, {msg, no, Msg}}).
@@ -428,32 +419,6 @@ handle_call({first_call_worker, Msg}, _From,
               {reply, {ok, []}, State}
 
       end;
-
-
-handle_call({call_cast_worker, _Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
-  when Async =:= true ->
-
- 	{reply, {ok, []}, State};
-
-
-handle_call({call_cast_worker, Msg}, _From, #state{workers_pids=Pids, async=Async}=State) 
-  when Async =:= false ->
- 
-    Free=maps:filter(fun(_K, V) -> V=/=2 andalso V=/=-1 end, Pids),
-
-    ?Trace(Free),
-
-    case maps:keys(Free) of
-          [] -> 
-              {reply, {ok, []}, State};
-
-          [P|_] -> 
-            R = gen_server:cast(P, Msg),
-
-              {reply, {ok, R}, State}
-
-      end;
-
 
 handle_call({cast_worker_defer, Msg}, {From,_}, #state{name=Name, workers_pids=Pids, 
                                                        async=Async, ports_pids=Ports}=State) 
