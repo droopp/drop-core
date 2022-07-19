@@ -72,35 +72,6 @@ handle_event({msg, {_,R,[Msg]}=_M},
 
       when Filter=/=<<"no">>, API=:=one ->
 
-       ?Trace({event_one, self(), Pid, Msg, Filter, API}),
-
-        case binary:match(Msg, Filter) of
-           nomatch -> ok;
-           _ -> call_worker0(Pid, R, <<Msg/binary, <<"\n">>/binary>>)
-         end,
- 
-          {ok, State};
-
-
-handle_event({msg, {_,R,[Msg]}=_M}, 
-             #state{pid=Pid, api=API}=State)
-
-      when API=:=one ->
-
-       ?Trace({event_one, self(), Pid, Msg, API}),
-
-        call_worker0(Pid, R, <<Msg/binary, <<"\n">>/binary>>),
-    
-          {ok, State};
-
-
-%% sone
-
-handle_event({msg, {_,R,[Msg]}=_M}, 
-             #state{pid=Pid, filter=Filter, api=API}=State)
-
-      when Filter=/=<<"no">>, API=:=sone ->
-
     ?Trace({event_one, self(), Pid, Msg, Filter, API}),
 
      case binary:match(Msg, Filter) of
@@ -115,7 +86,7 @@ handle_event({msg, {_,R,[Msg]}=_M},
 handle_event({msg, {_,R,[Msg]}=_M}, 
              #state{pid=Pid, api=API}=State)
 
-      when API=:=sone ->
+      when API=:=one ->
 
        ?Trace({event_one, self(), Pid, Msg, API}),
 
@@ -135,7 +106,7 @@ handle_event({msg, {_,R,[Msg]}=_M},
 
          case binary:match(Msg, Filter) of
             nomatch -> ok;
-            _ -> call_worker(Pid, R, <<Msg/binary, <<"\n">>/binary>>)
+            _ -> ppool_worker:dcast_worker(Pid, R, <<Msg/binary, <<"\n">>/binary>>)
          end,
  
            {ok, State};
@@ -148,7 +119,7 @@ handle_event({msg, {_,R,[Msg]}=_M},
 
        ?Trace({event_one, self(), Pid, Msg, API}),
 
-         call_worker(Pid, R, <<Msg/binary, <<"\n">>/binary>>),
+         ppool_worker:dcast_worker(Pid, R, <<Msg/binary, <<"\n">>/binary>>),
     
           {ok, State};
 
@@ -197,11 +168,3 @@ code_change(_OldVsn, State, _Extra) ->
  
 terminate(_Reason, _State) ->
     ok.
-
-
-call_worker0(Pid, R, Msg) ->
-    ppool_worker:cast_worker(Pid, R, Msg).
-
-
-call_worker(Pid, R, Msg) ->
-    ppool_worker:dcast_worker(Pid, R, Msg).

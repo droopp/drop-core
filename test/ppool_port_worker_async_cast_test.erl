@@ -6,7 +6,7 @@
 -define(MOD2, {"./test/workers/port_worker_async 1 200 2>/dev/null", 300}).
 -define(MOD3, {"./test/workers/port_worker_async 1 200 2>/dev/null", 100}).
 
-exec_call_test_i() ->
+exec_call_test_() ->
     {setup,
      fun() ->
         application:start(ppool),
@@ -53,7 +53,7 @@ exec_call_test_i() ->
 
           ?assert(P5=={ok, full_limit}),
 
-          timer:sleep(200)
+          timer:sleep(400)
 
 
       end,
@@ -69,7 +69,9 @@ exec_call_test_i() ->
           ?assert(P3==ok),
 
          P4=ppool_worker:stop_all_workers(p4_async),
-          ?assert(P4==ok)
+          ?assert(P4==ok),
+
+          timer:sleep(400)
 
       end,
       run_tests()

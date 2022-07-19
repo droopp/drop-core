@@ -4,7 +4,7 @@
 -define(WORKER, port_worker).
 -define(MOD1, {"./test/workers/port_worker_async 1 0 2>/dev/null", 100}).
 
-exec_call_test_i() ->
+exec_call_test_() ->
     {setup,
      fun() ->
         application:start(ppool)
@@ -242,92 +242,6 @@ run_tests() ->
 
         end
      },
-
-     {"sub 1 to 1 /sone",
-        fun() ->
-
-            R=ppool_worker:subscribe(p1_async, {s1_async, <<"no">>, sone}),
-              ?assert(R=:=ok),
-
-            R=ppool_worker:cast_worker(p1_async, <<"request1\n">>),
-              ?assert(R=:=ok),
-
-            timer:sleep(50),
-
-            Arr = ets:tab2list(p1_async),
-
-              [{worker_stat,_,
-                            no,_,p1_async,Req,Status,
-                            Res,
-                            _,
-                            _}] = lists:filter(fun(I)-> case I of 
-                                                            {_,_,_,_,_,<<"request1\n">>,_,_,_,_} -> true; 
-                                                            _ -> false 
-                                                        end 
-                                               end, Arr), 
-
-             ?assert(Status=:=ok),
-              ?assert(Req=:=<<"request1\n">>),
-               ?assert(Res=:=[<<"ok">>]),
-
-            Arr2 = ets:tab2list(s1_async),
-
-              [{worker_stat,_,
-                            no,_,s1_async,Req2,Status2,
-                            Res2,
-                            _,
-                            _}] = lists:filter(fun(I)-> case I of 
-                                                            {_,_,_,_,_,<<"ok\n">>,_,_,_,_} -> true; 
-                                                            _ -> false 
-                                                        end 
-                                               end, Arr2), 
-
-             ?assert(Status2=:=ok),
-              ?assert(Req2=:=<<"ok\n">>),
-               ?assert(Res2=:=[<<"ok">>]),
-
-            %% unsubscribe
-
-            R=ppool_worker:unsubscribe(p1_async, s1_async),
-              ?assert(R=:=ok),
-
-            R=ppool_worker:cast_worker(p1_async, <<"request2\n">>),
-              ?assert(R=:=ok),
-
-            timer:sleep(50),
-
-            Arr3 = ets:tab2list(p1_async),
-
-              [{worker_stat,_,
-                            no,_,p1_async,Req3,Status3,
-                            Res3,
-                            _,
-                            _}] = lists:filter(fun(I)-> case I of 
-                                                            {_,_,_,_,_,<<"request2\n">>,_,_,_,_} -> true; 
-                                                            _ -> false 
-                                                        end 
-                                               end, Arr3), 
-             ?assert(Status3=:=ok),
-              ?assert(Req3=:=<<"request2\n">>),
-               ?assert(Res3=:=[<<"ok">>]),
-
-
-            Arr4 = ets:tab2list(s1_async),
-
-                        Res4 = lists:filter(fun(I)-> case I of 
-                                                            {_,_,_,_,_,<<"ok\n">>,_,_,_,_} -> true; 
-                                                            _ -> false 
-                                                        end 
-                                               end, Arr4), 
-
-
-              %% ?debugFmt("process state..~p~n", [Res4]),
-
-              ?assert(length(Res4)=:=1)
-
-        end
-     },
-
 
      {"sub 1 to dall",
         fun() ->

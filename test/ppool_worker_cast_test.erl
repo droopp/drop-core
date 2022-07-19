@@ -7,7 +7,7 @@
 -define(MOD3, {{erl_worker, do_2000_ok}, 100}).
 
 
-exec_call_test_i() ->
+exec_call_test_() ->
     {setup,
      fun() ->
         application:start(ppool),

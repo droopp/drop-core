@@ -4,7 +4,7 @@
 -define(WORKER, port_worker).
 -define(MOD1, {"./test/workers/port_worker 0 2>/dev/null", 100}).
 
-exec_call_test_i() ->
+exec_call_test_() ->
     {setup,
      fun() ->
         application:start(ppool)
@@ -206,71 +206,6 @@ run_tests() ->
                             Res2,
                             _,
                             _}, _] = ets:tab2list(s2),
-
-             ?assert(Status2=:=ok),
-              ?assert(Req2=:=<<"ok\n">>),
-               ?assert(Res2=:=[<<"ok">>])
-
-        end
-     },
-
-
-     {"sub 1 to 1/ sone",
-        fun() ->
-
-            R=ppool_worker:subscribe(p1, {s1, <<"no">>, sone}),
-              ?assert(R=:=ok),
-
-            R=ppool_worker:cast_worker(p1, <<"request1\n">>),
-              ?assert(R=:=ok),
-
-            timer:sleep(50),
-
-              [{worker_stat,_,
-                            no,_,p1,Req,Status,
-                            Res,
-                            _,
-                            _}] = ets:tab2list(p1),
-
-             ?assert(Status=:=ok),
-              ?assert(Req=:=<<"request1\n">>),
-               ?assert(Res=:=[<<"ok">>]),
-
-              [{worker_stat,_,
-                            _,_,s1,Req2,Status2,
-                            Res2,
-                            _,
-                            _}] = ets:tab2list(s1),
-
-             ?assert(Status2=:=ok),
-              ?assert(Req2=:=<<"ok\n">>),
-               ?assert(Res2=:=[<<"ok">>]),
-
-            %% unsubscribe
-
-            R=ppool_worker:unsubscribe(p1, s1),
-              ?assert(R=:=ok),
-
-            R=ppool_worker:cast_worker(p1, <<"request1\n">>),
-              ?assert(R=:=ok),
-
-            timer:sleep(50),
-
-              [_, {worker_stat,_,
-                            no,_,p1,Req,Status,
-                            Res,
-                            _,
-                            _}] = ets:tab2list(p1),
-
-             ?assert(Status=:=ok),
-              ?assert(Req=:=<<"request1\n">>),
-               ?assert(Res=:=[<<"ok">>]),
-
-              [{worker_stat,_,
-                            _,_,s1,Req2,Status2,
-                            Res2,
-                            _,
-                            _}] = ets:tab2list(s1),
 
              ?assert(Status2=:=ok),
               ?assert(Req2=:=<<"ok\n">>),
