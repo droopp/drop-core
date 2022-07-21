@@ -139,11 +139,6 @@ fn run_worker(w: (u32, Sender<u32>, Receiver<String>), sleep: u64){
         //read message
         let raw_msg = rx.recv().unwrap();
 
-        if raw_msg == "stop_async_worker" {
-            send(&raw_msg);
-            break;
-        }
- 
         let mut msg_iter = raw_msg.split("::");
         let msg_id = msg_iter.next().unwrap().to_string();
 

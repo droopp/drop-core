@@ -159,7 +159,6 @@ handle_cast({async_loop}, #state{master=N, ev=E, port=Port, cmd=Cmd, timeout=T}=
 
        case process_async_ets_msg(N, E, Port, Ref, T) of
             {stop, normal} -> {stop, normal, State};
-            {error, timeout} -> {stop, port_timeout, State};
              _ -> {noreply, State}
       
         end;
