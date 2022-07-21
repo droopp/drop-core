@@ -80,7 +80,7 @@ run_tests() ->
 
                Res=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_,_}}]}]]} = Res,
 
                 ?assert(1=:=length(maps:keys(PidMaps))),
 
@@ -89,7 +89,7 @@ run_tests() ->
  
                Res2=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_,_}}]}]]} = Res2,
 
                 ?assert(2=:=length(maps:keys(PidMaps2)))
 
@@ -103,7 +103,7 @@ run_tests() ->
 
                Res=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_,_}}]}]]} = Res,
 
                 ?assert(maps:keys(PidMaps)=:=[P1]),
 
@@ -117,7 +117,7 @@ run_tests() ->
 
                 %% ?debugFmt("process state..~p~n", [Res2]),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_,_}}]}]]} = Res2,
 
                 ?assert(maps:keys(PidMaps2)=/=[P1])
 
@@ -135,7 +135,7 @@ run_tests() ->
 
                 %% ?debugFmt("process state..~p~n", [Res2]),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_,_}}]}]]} = Res2,
 
 
                 ?assert(10=:=length(maps:keys(PidMaps2)))
@@ -156,7 +156,7 @@ run_tests() ->
 
                 %% ?debugFmt("process state..~p~n", [Res2]),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_,_}}]}]]} = Res2,
 
 
                 ?assert(13=:=length(maps:keys(PidMaps2)))
@@ -175,7 +175,7 @@ run_tests() ->
 
                Res1=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps1,_,_,_}}]}]]} = Res1,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps1,_,_,_,_}}]}]]} = Res1,
 
 
                 ?assert(10=:=length(maps:keys(PidMaps1))),
@@ -187,7 +187,7 @@ run_tests() ->
 
                Res2=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_,_}}]}]]} = Res2,
 
 
                 ?assert(14=:=length(maps:keys(PidMaps2)))
@@ -205,7 +205,7 @@ run_tests() ->
 
                Res1=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps1,_,_,_}}]}]]} = Res1,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps1,_,_,_,_}}]}]]} = Res1,
 
                 ?assert(5=:=length(maps:keys(PidMaps1)))
 
@@ -221,7 +221,7 @@ run_tests() ->
 
                Res1=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps1,_,_,_}}]}]]} = Res1,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps1,_,_,_,_}}]}]]} = Res1,
 
                 ?assert(0=:=length(maps:keys(PidMaps1)))
 
@@ -245,7 +245,7 @@ run_tests() ->
                Res2=sys:get_status(whereis(p1)),
 
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,_,_,_}}]}]]} = Res2,
 
                 ?assert(0=:=length(maps:keys(PidMaps2)))
 
@@ -267,7 +267,7 @@ run_tests() ->
 
                 %% ?debugFmt("process state..~p~n", [Res2]),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_,_}}]}]]} = Res2,
 
                 ?assert(2=:=length(maps:keys(Pidmaps2)))
 
@@ -287,7 +287,7 @@ run_tests() ->
 
                Res=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps,_,_,_}}]}]]} = Res,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps,_,_,_,_}}]}]]} = Res,
 
                 ?assert(4=:=length(maps:keys(Pidmaps))),
 
@@ -298,7 +298,7 @@ run_tests() ->
 
                Res2=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_,_}}]}]]} = Res2,
 
                 ?assert(2=:=length(maps:keys(Pidmaps2)))
 
@@ -314,7 +314,7 @@ run_tests() ->
 
                Res=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps,_,_,_}}]}]]} = Res,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps,_,_,_,_}}]}]]} = Res,
 
                 ?assert(3=:=length(maps:keys(Pidmaps))),
 
@@ -324,7 +324,7 @@ run_tests() ->
 
                Res2=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_,_}}]}]]} = Res2,
 
                 ?assert(0=:=length(maps:keys(Pidmaps2))),
 
@@ -337,7 +337,7 @@ run_tests() ->
 
                Res3=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps3,_,_,_}}]}]]} = Res3,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps3,_,_,_,_}}]}]]} = Res3,
 
                 ?assert(10=:=length(maps:keys(Pidmaps3)))
 
@@ -359,7 +359,7 @@ run_tests() ->
 
                Res=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps,_,_,_}}]}]]} = Res,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps,_,_,_,_}}]}]]} = Res,
 
                 ?assert(4=:=length(maps:keys(Pidmaps))),
 
@@ -371,7 +371,7 @@ run_tests() ->
 
                Res2=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_,_}}]}]]} = Res2,
 
                 ?assert(0=:=length(maps:keys(Pidmaps2)))
 
@@ -387,7 +387,7 @@ run_tests() ->
 
                Res=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps,_,_,_}}]}]]} = Res,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps,_,_,_,_}}]}]]} = Res,
 
                 ?assert(3=:=length(maps:keys(Pidmaps))),
 
@@ -398,7 +398,7 @@ run_tests() ->
 
                Res2=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_}}]}]]} = Res2,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps2,_,_,_,_}}]}]]} = Res2,
 
                 ?assert(10=:=length(maps:keys(Pidmaps2))),
 
@@ -409,7 +409,7 @@ run_tests() ->
 
                Res3=sys:get_status(whereis(p1)),
 
-                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps3,_,_,_}}]}]]} = Res3,
+                {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,Pidmaps3,_,_,_,_}}]}]]} = Res3,
 
                 ?assert(2=:=length(maps:keys(Pidmaps3)))
 

@@ -102,7 +102,7 @@ run_tests() ->
 
                Res=sys:get_status(whereis(p2)),
 
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_,_}}]}]]} = Res,
 
                 % ?debugFmt("process state..~p~n", [PidMaps]),
 
@@ -131,7 +131,7 @@ run_tests() ->
 
             % ?debugFmt("process state..~p~n", [Res2]),
 
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,Nomore,_}}]}]]} = Res2,
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps2,_,Nomore,_,_}}]}]]} = Res2,
 
               %% ?debugFmt("process state..~p~n", [PidMaps2]),
 
@@ -144,7 +144,7 @@ run_tests() ->
 
                Res3=sys:get_status(whereis(p2)),
 
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_,_}}]}]]} = Res3,
 
 
               %%?debugFmt("process state..~p~n", [PidMaps3]),
@@ -223,7 +223,7 @@ run_tests() ->
 
                Res3=sys:get_status(whereis(p3)),
 
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_,_}}]}]]} = Res3,
 
               %% ?debugFmt("process state..~p~n", [PidMaps3]),
 
@@ -252,7 +252,7 @@ run_tests() ->
 
                Res3=sys:get_status(whereis(p4)),
 
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_,_}}]}]]} = Res3,
 
               %% ?debugFmt("process state..~p~n", [PidMaps3]),
 
@@ -275,7 +275,7 @@ run_tests() ->
 
                Res=sys:get_status(whereis(p2)),
 
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_}}]}]]} = Res,
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps,_,_,_,_}}]}]]} = Res,
 
                 % ?debugFmt("process state..~p~n", [PidMaps]),
 
@@ -287,7 +287,7 @@ run_tests() ->
 
                Res3=sys:get_status(whereis(p2)),
 
-              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_}}]}]]} = Res3,
+              {_,_,_,[_,_,_,_,[_,_,{_,[{_,{_,_,_,_,PidMaps3,_,_,_,_}}]}]]} = Res3,
 
 
               %%?debugFmt("process state..~p~n", [PidMaps3]),

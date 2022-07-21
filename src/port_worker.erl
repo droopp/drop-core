@@ -19,7 +19,6 @@
           ev,
           port,
           cmd,
-          async,
           timeout
 }).
 
@@ -58,22 +57,6 @@ handle_call({msg, R, Msg}, From, #state{master=N, ev=E, cmd=Cmd, port=Port,
        end;
 
 
-handle_call({sync_msg, R, Msg}, _From, #state{master=N, ev=E,
-                                              cmd=Cmd, port=Port,
-                                              timeout=T}=State) ->
- 
-     Ref=new_ets_msg(N, Cmd, R, Msg),
-
-        case process_ets_msg(N, E, Port, Ref, Msg, T) of
-            {ok, Response} -> 
-                {reply, {ok, Response}, State};
-            {error, Status, Err} ->
-                {reply, {error, Status, Err}, State};
-            {error, timeout} ->
-                 {stop, port_timeout, State}
-        end;
-
-
 handle_call(stop, From, State) ->
 
     ?Trace({stop, self()}),
@@ -91,6 +74,8 @@ handle_cast({msg, _, restart}, State) ->
     {stop, restart, State};
 
 handle_cast({msg, _, stop}, State) ->
+
+   ?Trace({stop, normal, erlang:process_info(self(), message_queue_len) }),
 
     case erlang:process_info(self(), message_queue_len) of
         {_, 0} ->
@@ -154,14 +139,12 @@ handle_cast({dmsg, R, Msg}, #state{master=N}=State) ->
         {noreply, State};
 
 
-handle_cast({stream_msg, R, Msg}, #state{master=N, ev=E, cmd=Cmd, port=Port, 
-                                        timeout=T}=State) ->
+handle_cast({stream_loop}, #state{master=N, ev=E, cmd=Cmd, port=Port, timeout=T}=State) ->
 
-    Ref = new_ets_msg(N, Cmd, R, Msg),
-
-      port_command(Port, Msg),
+    Ref = new_ets_msg(N, Cmd, no, <<"start\n">>),
  
-       case process_stream_ets_msg(N, E, Port, Ref, Msg, T, os:timestamp()) of
+       case process_stream_ets_msg(N, E, Port, Ref, T, os:timestamp()) of
+           {stop, normal} -> {stop, normal, State};
            {error, timeout} -> {stop, port_timeout, State};
             _ -> {noreply, State}
 
@@ -223,23 +206,22 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
 
         ppool_worker:register_worker(M, {self(), Port}),
 
-        %% if stream type do start
-
+        %% if stream type
         case string:find(erlang:atom_to_list(M), "_stream") of 
             nomatch -> ok;
-            _ -> ppool_worker:stream_all_workers(M, <<"start\n">>)
+            _ -> 
+                gen_server:cast(self(), {stream_loop})
         end,
 
          %% if async type
-         Async = case string:find(erlang:atom_to_list(M), "_async") of 
+         case string:find(erlang:atom_to_list(M), "_async") of 
             nomatch -> 
-               false;
+               ok;
             _ ->
-        	   gen_server:cast(self(), {async_loop}),
-                true
+        	   gen_server:cast(self(), {async_loop})
           end,
 
-	        {noreply, State#state{port=Port, async=Async}};
+	        {noreply, State#state{port=Port}};
 
 
 
@@ -278,6 +260,7 @@ collect_response(Port, T) ->
      end.
 
 collect_response(Port, T, Lines, OldLine) ->
+
    receive
 
         {Port, {data, Data}} ->
@@ -289,7 +272,10 @@ collect_response(Port, T, Lines, OldLine) ->
             end;
 
         {Port, {exit_status, Status}} ->
-            {error, Status, Lines}
+            {error, Status, Lines};
+
+        {_, {msg, _, stop}} ->
+           {stop, normal}
 
     after
          T ->
@@ -297,6 +283,7 @@ collect_response(Port, T, Lines, OldLine) ->
     end.
 
 collect_response(Port, Lines, OldLine) ->
+
    receive
 
         {Port, {data, Data}} ->
@@ -308,7 +295,10 @@ collect_response(Port, Lines, OldLine) ->
             end;
 
         {Port, {exit_status, Status}} ->
-            {error, Status, Lines}
+            {error, Status, Lines};
+
+        {_, {msg, _, stop}} ->
+           {stop, normal}
 
     end.
 
@@ -339,7 +329,7 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
 
         case collect_response(Port, no) of
 
-            {ok, [<<"stop_async_worker">>]} ->
+            {stop, normal} ->
 
                 true=ets:update_element(N, Ref, [
                                                {#worker_stat.status, ok},
@@ -422,24 +412,8 @@ process_async_ets_msg(N, E, Port, Ref, T) ->
                   gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
                    timer:sleep(?ERROR_TIMEOUT),
 
-                    {error, Status, Err};
+                    {error, Status, Err}
 
-            {error, timeout} ->
- 
-                true=ets:update_element(N, Ref, [
-                                 {#worker_stat.status, timeout},
-                                 {#worker_stat.time_start, os:timestamp()},
-                                 {#worker_stat.time_end, os:timestamp()}
-                                ]),
-
-                 Msg2=erlang:list_to_binary(["system::timeout::", 
-                      atom_to_list(node()),"::",
-                      atom_to_list(N)]),
-
-                  gen_event:notify(E, {msg, {error, Ref, [Msg2]}}),
-                    timer:sleep(?ERROR_TIMEOUT),
-
-                     {error, timeout}
         end.
 
 
@@ -503,7 +477,7 @@ process_ets_msg(N, E, Port, Ref, Msg, T) ->
         end.
 
 
-process_stream_ets_msg(N, E, Port, Ref, Msg, T, LastTime) ->
+process_stream_ets_msg(N, E, Port, Ref, T, LastTime) ->
 
         case collect_response(Port, T) of
 
@@ -512,16 +486,31 @@ process_stream_ets_msg(N, E, Port, Ref, Msg, T, LastTime) ->
                   gen_event:notify(E, {msg, {ok, Ref, Response}}),
 
     		       Ref2={node(), self(), os:timestamp()},
+                   FinTime = os:timestamp(),
 
-                     FinTime = os:timestamp(),
+                     MsgL = case os:getenv("ETS_REQ_RES", "yes") of
+                                "yes" -> Response;
+                                "no" -> no
+                            end,
 
 		              true=ets:insert(N, #worker_stat{ref=Ref2, 
                                                       ref_from=no, pid=self(),cmd=N,
-                                                      req=Msg, status=ok, result=no,
+                                                      req=no, status=ok, result=MsgL,
                                                       time_start=LastTime, time_end=FinTime}
 					                  ),
 
-                         process_stream_ets_msg(N, E, Port, Ref, Msg, T, FinTime);
+                         process_stream_ets_msg(N, E, Port, Ref, T, FinTime);
+
+
+            {stop, normal} ->
+                true=ets:update_element(N, Ref, [
+                                               {#worker_stat.status, ok},
+                                               {#worker_stat.result, no},
+                                               {#worker_stat.time_start, os:timestamp()},
+                                               {#worker_stat.time_end, os:timestamp()}
+                                ]),
+ 
+            	{stop, normal};
 
             {error, Status, Err} ->
 

@@ -29,7 +29,6 @@
 
          cast_all_workers/2,
          cast_all_workers/3,
-         stream_all_workers/2,
 
          set_status_worker/3,
          get_result_worker/2,
@@ -62,8 +61,8 @@
           workers_pids=maps:new(),
           ports_pids=maps:new(),
           nomore=0,
-          async
-          
+          async,
+          stream
 }).
 
 
@@ -86,6 +85,7 @@ init([Name, Limit, MFA]) ->
      erlang:send_after(?INTERVAL_NOMORE, self(), send_nomore),
 
 	  Async = string:find(erlang:atom_to_list(Name), "_async") =/= nomatch,
+	  Stream = string:find(erlang:atom_to_list(Name), "_stream") =/= nomatch,
 
         case Async of
           true -> process_flag(trap_exit, true);
@@ -94,7 +94,7 @@ init([Name, Limit, MFA]) ->
            
     	?Trace({init, async, Async}),
 
-	{ok, #state{limit=Limit, mfa=MFA, name=Name, async=Async}}.
+	{ok, #state{limit=Limit, mfa=MFA, name=Name, async=Async, stream=Stream}}.
 
 
 
@@ -197,11 +197,6 @@ cast_all_workers(Name, Ref, Msg) ->
     gen_server:cast(Name, {cast_all_workers, {msg, Ref, Msg}}).
 
 
-stream_all_workers(Name, Msg) ->
-    gen_server:cast(Name, {cast_all_workers,
-                           {stream_msg, no, Msg}}).
-
-
 set_status_worker(Name, Pid, S) ->
     gen_server:cast(Name, {set_status_worker, Pid, S}).
 
@@ -278,15 +273,22 @@ handle_call({start_worker, _, C}, _From, State)
 
 
 handle_call({stop_all_workers, C}, _From, 
-                       #state{workers_pids=Pids, async=Async}=State)
-  when Async =:= false ->
+                       #state{workers_pids=Pids, async=Async, 
+                              stream=Stream}=State) ->
 
     Cr = length(maps:keys(Pids)),
 
     ?Trace({stop_all_workers, Cr, C}),
 
-    Free=maps:filter(fun(_K, V) -> V=/=2 end ,Pids),
- 
+    Free = case Stream or Async of
+             false ->
+                 maps:filter(fun(_K, V) -> V=/=2 end ,Pids);
+             true ->
+                 maps:filter(fun(_K, V) -> V=/=-1 end ,Pids)
+         end,
+
+    ?Trace({stop_all_workers, free, Free}),
+
     case C=:=0 of
         true ->
              lists:foreach(fun(Pid) ->
@@ -303,49 +305,6 @@ handle_call({stop_all_workers, C}, _From,
                                         gen_server:cast(Pid, {msg, no, stop}) end, 
                                         split(maps:keys(Free), Cr-C)
                                 );
-                false ->
-                    ok
-            end
-
-       end,
-
-	   {reply, ok, State};
-
-
-handle_call({stop_all_workers, C}, _From, 
-            #state{name=Name, workers_pids=Pids, ports_pids=Ports, async=Async}=State)
-
-  when Async =:= true ->
-
-    Cr = length(maps:keys(Pids)),
-
-    ?Trace({stop_all_workers_async, Cr, C}),
-
-    Free=maps:filter(fun(_K, V) -> V=/=-1 end ,Pids),
-
-    case C=:=0 of
-        true ->
-
-             lists:foreach(fun(Pid) ->
-				              ppool_worker:set_status_worker(Name, Pid, 0),
-                              port_command(maps:get(Pid, Ports), <<"stop_async_worker\n">>)
-                           end, 
-                           maps:keys(Free)
-                           );
-
-        false ->
-
-            case C > 0 andalso Cr - C > 0 of
-                true -> 
-
-                   ?Trace({stop, split(maps:keys(Free), Cr-C)}),
-
-                    lists:foreach(fun(Pid) ->
-				                    ppool_worker:set_status_worker(Name, Pid, 0),
-                                   port_command(maps:get(Pid, Ports), <<"stop_async_worker\n">>)
-                                  end, 
-                                  split(maps:keys(Free), Cr-C)
-                                 );
                 false ->
                     ok
             end
