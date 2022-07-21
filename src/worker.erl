@@ -176,7 +176,7 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
 
      Pid = self(),
 
-     {Fn, Port} = case Cmd of
+     {_, Port} = case Cmd of
        {Md, F} ->
           {F, spawn_link(fun() -> Md:F(Pid) end)};
        {Md, F , A} ->

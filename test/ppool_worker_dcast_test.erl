@@ -57,7 +57,6 @@ exec_call_test_() ->
 
           timer:sleep(200)
 
-
       end,
       fun(_) ->
 
@@ -71,7 +70,9 @@ exec_call_test_() ->
           ?assert(P3==ok),
 
          P4=ppool_worker:stop_all_workers(p4),
-          ?assert(P4==ok)
+          ?assert(P4==ok),
+
+          timer:sleep(200)
 
       end,
       run_tests()
