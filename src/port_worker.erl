@@ -197,10 +197,27 @@ handle_info(timeout, #state{master=M, cmd=Cmd}=State) ->
 
     ?Trace({open_port, Cmd}),
 
-      Port = open_port({spawn, Cmd},
-                           [{line, 256}, 
-                              exit_status, binary]),
+     Port = case Cmd of
+         {driver, Path, Name} ->
+
+            case erl_ddll:load_driver(Path, Name) of                              
+                ok -> ok;                                                                  
+                {error, already_loaded} -> ok;                                             
+                _ -> exit({error, could_not_load_driver})                                  
+            end,
+
+            open_port({spawn, Name}, [binary]);
+
+
+         C ->
+                    
+            open_port({spawn, C}, [{line, 256}, 
+                                    exit_status, 
+                                    binary])
     
+      end,
+
+   
        ?Trace({registering, self()}),
 
         ppool_worker:register_worker(M, {self(), Port}),
@@ -267,7 +284,9 @@ collect_response(Port, T, Lines, OldLine) ->
                 {eol, Line} ->
                     {ok, [<<OldLine/binary,Line/binary>> | Lines]};
                 {noeol, Line} ->
-                    collect_response(Port, T, Lines, <<OldLine/binary,Line/binary>>)
+                    collect_response(Port, T, Lines, <<OldLine/binary,Line/binary>>);
+                <<Bin/binary>> ->
+                    {ok, [<<Bin/binary>>]}
             end;
 
         {Port, {exit_status, Status}} ->
@@ -290,7 +309,10 @@ collect_response(Port, Lines, OldLine) ->
                 {eol, Line} ->
                     {ok, [<<OldLine/binary,Line/binary>> | Lines]};
                 {noeol, Line} ->
-                    collect_response(Port, Lines, <<OldLine/binary,Line/binary>>)
+                    collect_response(Port, Lines, <<OldLine/binary,Line/binary>>);
+                <<Bin/binary>> ->
+                    {ok, [<<Bin/binary>>]}
+ 
             end;
 
         {Port, {exit_status, Status}} ->
