@@ -8,3 +8,5 @@ ebin/*.beam
 ebin/*
 .erlang.mk/
 ppool.d
+apps/*/ebin/
+apps/*/*.d
