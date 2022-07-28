@@ -6,12 +6,19 @@ ERLC_OPTS= -Dtrace
 ERL_COMPILE_FLAGS= -Dtrace
 EUNIT_ERL_OPTS = -kernel start_pg true
 
+DEPS = cowboy
+dep_cowboy_commit = 2.9.0
+DEP_PLUGINS = cowboy
+
 include erlang.mk
 
-.PHONY: run build_test_workers clean_test_workers
+.PHONY: run exec build_test_workers clean_test_workers
+
+exec:
+	@erl -pa ebin -kernel start_pg true -s main
 
 run:
-	@erl -pa ebin -kernel start_pg true -s main
+	@./scripts/drop-core start
 
 build_test_workers:
 	@cd test/workers && erlc *.erl && cd -

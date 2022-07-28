@@ -30,11 +30,8 @@
     -define(Error(M), void).
 -endif.
 
-
 -define(ERROR_TIMEOUT, 500).
 -define(NO_MORE_PPOOL, node_collector).
-
--define(SPLIT_MSG_SEQ, <<"\tncm\t">>).
 
 -record(worker_stat, {
           ref,

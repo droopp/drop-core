@@ -1,0 +1,4 @@
+-define(PORT, "8081").
+-define(MAX_BODY_REDIRECT, 5000000).
+-define(IDLE_TIMEOUT, 300000).
+-define(SPLIT_MSG_SEQ, <<"\tncm\t">>).

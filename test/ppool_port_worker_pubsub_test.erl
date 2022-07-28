@@ -4,7 +4,7 @@
 -define(WORKER, port_worker).
 -define(MOD1, {"./test/workers/port_worker 0 2>/dev/null", 100}).
 
-exec_call_test_() ->
+exec_call_test_i() ->
     {setup,
      fun() ->
         application:start(ppool)
