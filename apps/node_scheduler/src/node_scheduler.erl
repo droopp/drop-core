@@ -5,7 +5,7 @@
 -export([start_link/0,
          call/4,
          cmd/2,
-         cmd2/3,
+         cmd/3,
          api/1,
          node_info_internal_stream/1,
          try_start/1,
@@ -28,6 +28,7 @@
 
 -include("node_scheduler.hrl").
 -include("../../src/ppool.hrl").
+-include("../../apps/drop_api/src/api_handler.hrl").
 
 
 %% API.
@@ -155,9 +156,9 @@ handle_info(timeout, State) ->
                               {cmd(lists:concat(["flower_sc_stream/flower_sc_stream",
                                     " --var-dir ", os:getenv("DROP_VAR_DIR"),          %% var dir with /db and /flows
                                     " --node ", node(),                                %% current node
-                                    " --interval, " ?FLOWER_SC_INTERVAL,               %% scheduler interval
+                                    " --interval, ", ?FLOWER_SC_INTERVAL,               %% scheduler interval
                                     " --vip ", os:getenv("DROP_VIP"),                  %% VIP ip addr
-                                    " --vip-iface " os:getenv("DROP_VIP_IFACE"),       %% VIP net iface
+                                    " --vip-iface ", os:getenv("DROP_VIP_IFACE"),       %% VIP net iface
                                     " --drop-name ", "flower_sc_stream"]),             %% marker to collect stats
                                     "flower_sc_stream.log"
                                     ), ?FLOWER_SC_TIMEOUT}
@@ -165,23 +166,23 @@ handle_info(timeout, State) ->
 
     %% api
 
-    ppool_worker:start_all_workers(node_api, 
+    {'ok', 'full_limit'} = ppool_worker:start_all_workers(node_api, 
                                     {{node_scheduler, api}, ?NODE_API_TIMEOUT}
     ),
 
     %% collect metric about actors
 
-    ppool_worker:start_worker(node_info_internal_stream, 
+    ok=ppool_worker:start_worker(node_info_internal_stream, 
                               {{node_scheduler, node_info_internal_stream}, ?NODE_INFO_IN_TIMEOUT}
     ),
 
     %% multicast zeroconf
 
-    ppool_worker:start_worker(node_mcast_stream, 
+    ok=ppool_worker:start_worker(node_mcast_stream, 
                               {{node_watch, node_mcast_stream}, ?NODE_MCAST_TIMEOUT}
     ),
 
-    ppool_worker:start_worker(node_mcast_api, 
+    ok=ppool_worker:start_worker(node_mcast_api, 
                               {{node_watch, node_mcast_api}, ?NODE_MCAST_API_TIMEOUT}
     ),
 
@@ -203,20 +204,19 @@ code_change(_OldVsn, State, _Extra) ->
 
 cmd(Img, Cmd, Log) ->
 
-    case string:find(Img, "plugin") of
+    R = case string:find(Img, "plugin") of
        nomatch ->
-            R = lists:concat([?RUNC,
+            lists:concat([?RUNC,
                               " ",  Img, " ", Cmd,
                               " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log]);
         _ ->
-            R = lists:concat([os:getenv("DROP_VAR_DIR"),"/plugins/", Cmd,
+            lists:concat([os:getenv("DROP_VAR_DIR"),"/plugins/", Cmd,
                             " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log])
  
     end,
 
      ?Trace({cmd, R}),
-
-      R;
+      R.
 
 
 cmd(Cmd, Log) ->
@@ -272,7 +272,7 @@ call(Type, F, Name, Cmd) ->
         end,
 
 
-    case Type of
+    [Res] = case Type of
 
         local ->
             [Tf(P, Cmd)||P <- [X || X<- Get_memb(Name, fun pg:get_local_members/1), 
@@ -283,7 +283,9 @@ call(Type, F, Name, Cmd) ->
         Node ->
             [Tf(P, Cmd)||P <- [X || X <- Get_memb(Name, fun pg:get_members/1), node(X)=:=Node]]
  
-    end.
+    end,
+
+    Res.
 
 
 %%
@@ -383,7 +385,7 @@ call_api(Msg) ->
 
            ?Trace({Tp, Fn, Name, A}),
 
-           case erlang:binary_to_atom(Fn, latin1) of
+           Ret = case erlang:binary_to_atom(Fn, latin1) of
 
                cast_nodes ->
 
@@ -557,34 +559,6 @@ call_api(Msg) ->
                             <<Args/binary, <<"\n">>/binary>>
                              );
 
-               cap_workers ->
-
-                   [Cnt|_] = A,
-
-                   _Res = call(erlang:binary_to_atom(Tp, latin1),
-                            fun(N, C) -> 
-                                    ppool_worker:cap_workers(N, C)
- 
-                            end,
-                            erlang:binary_to_atom(Name, latin1),
-                            erlang:binary_to_integer(Cnt)
-                           
-                             );
-
-               call_workers ->
-
-                   [Args|_] = A,
-
-                   _Res = call(erlang:binary_to_atom(Tp, latin1),
-                            fun(N, C) -> 
-                                    ppool_worker:call_workers(N, C)
- 
-                            end,
-                            erlang:binary_to_atom(Name, latin1),
-                             <<Args/binary, <<"\n">>/binary>>
-                             );
-                
-
                cast_all_workers ->
 
                    [Args|_] = A,
@@ -592,20 +566,6 @@ call_api(Msg) ->
                    _Res = call(erlang:binary_to_atom(Tp, latin1),
                             fun(N, C) -> 
                                     ppool_worker:cast_all_workers(N, C)
- 
-                            end,
-                            erlang:binary_to_atom(Name, latin1),
-                             <<Args/binary, <<"\n">>/binary>>
-                             );
-
-
-               stream_all_workers ->
-
-                   [Args|_] = A,
-
-                   _Res = call(erlang:binary_to_atom(Tp, latin1),
-                            fun(N, C) -> 
-                                    ppool_worker:stream_all_workers(N, C)
  
                             end,
                             erlang:binary_to_atom(Name, latin1),
@@ -644,16 +604,12 @@ call_api(Msg) ->
                              }
                              );
 
-
                _M ->
-                 ok,
-                  ?Debug3({unknow_call_api, _M})
-
+                 ?Trace({unknow_call_api, _M}),
+                 ok
            end,
 
-           ok.
-
-
+           Ret.
 
 
 api(F) ->
@@ -662,13 +618,12 @@ api(F) ->
          Msg ->
 
             Msgs = binary:split(Msg, ?SPLIT_MSG_SEQ, [global]),
-             ?Debug3({recv, Msgs}),
+             ?Trace({recv, Msgs}),
 
-             lists:foreach(fun(M) -> call_api(M) end,  Msgs),
+              lists:foreach(fun(M) -> call_api(M) end,  Msgs),
 
-               F!{self(), {data, [<<"ok">>]}},
+                F!{self(), {data, [<<"ok">>]}},
 
              api(F)
-
 
     end.

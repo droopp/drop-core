@@ -39,10 +39,9 @@ cast_nodes(Msg) ->
 
 init([]) ->
 
-    pg:create(?MODULE),
     pg:join(?MODULE, self()),
 
-     net_kernel:monitor_nodes(true, [nodedown_reason]),
+     ok=net_kernel:monitor_nodes(true, [nodedown_reason]),
 
      erlang:send_after(?TIMEOUT, self(), ping_nodes),
      erlang:send_after(?TIMEOUT, self(), ping_world),
@@ -205,14 +204,14 @@ node_mcast0(F) ->
   
   ?Trace({node_mcast0_IS_MCAST, os:getenv("IS_MCAST", "0")}), 
 
-  case os:getenv("IS_MCAST", "0") of
+  S = case os:getenv("IS_MCAST", "0") of
       "1" -> 
-          S=open(?ADDR, ?PORT);
+          open(?ADDR, ?PORT);
        _ ->
-            S=open2(?ADDR, ?PORT)
-  end,
+            open2(?ADDR, ?PORT)
+   end,
 
-   gen_udp:controlling_process(S, self()),
+   ok=gen_udp:controlling_process(S, self()),
 
     receiver(F).
    
@@ -239,7 +238,7 @@ open(Addr,Port) ->
                                {multicast_ttl, ?MCATS_TTL},
                                {multicast_loop,false}, binary]),
 
-   inet:setopts(S,[{add_membership,{Addr,{0,0,0,0}}}]),
+   ok=inet:setopts(S,[{add_membership,{Addr,{0,0,0,0}}}]),
 
    S.
 
@@ -296,7 +295,7 @@ node_mcast_api0(Msg) ->
                             {add_membership, {?ADDR, {0,0,0,0}}}
                            ]),
 
-            gen_udp:send(S, ?ADDR, ?PORT, Msg),
+            ok=gen_udp:send(S, ?ADDR, ?PORT, Msg),
             gen_udp:close(S).
 
 
