@@ -249,8 +249,6 @@ open(Addr,Port) ->
 %%  
 %%
 
-
-
 node_mcast_api02(Msg) ->
 
   %% send multicast msg
@@ -311,7 +309,6 @@ node_mcast_api(F) ->
                 _ ->
                     node_mcast_api02(body_to_msg(Msg))
             end,
-
             
               F!{self(), {data, [<<"ok">>]}},
 
@@ -321,6 +318,7 @@ node_mcast_api(F) ->
 
 
 body_to_msg(Body) ->
+
     case binary:last(Body) =:= 10 of
         true ->
             binary:part(Body, {0, byte_size(Body)-1});
