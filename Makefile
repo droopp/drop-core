@@ -2,8 +2,8 @@ PROJECT = ppool
 PROJECT_DESCRIPTION = Core App /Distribued Reliable Operation Platform
 PROJECT_VERSION = 0.1.0
 
-ERLC_OPTS= -Dtrace
-ERL_COMPILE_FLAGS= -Dtrace
+# ERLC_OPTS= -Dtrace
+# ERL_COMPILE_FLAGS= -Dtrace
 EUNIT_ERL_OPTS = -kernel start_pg true
 
 BUILD_DEPS = cowboy
@@ -40,3 +40,6 @@ clean_test_workers:
 	@rm priv/node_info_stream/node_info_stream
 	@rm priv/flower/flower
 	@rm priv/node_collector/node_collector
+
+build_workers:
+
