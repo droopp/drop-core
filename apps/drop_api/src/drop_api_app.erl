@@ -15,7 +15,8 @@ start(_Type, _Args) ->
     ]),
 
 	{ok, _} = cowboy:start_clear(http, 
-                                 [{port, list_to_integer(os:getenv("DROP_API_PORT", ?PORT))}]
+                                 [{ip, {127,0,0,1}}, 
+                                  {port, list_to_integer(os:getenv("DROP_API_PORT", ?PORT))}]
                                  ,#{env => #{dispatch => Dispatch}
                                  ,idle_timeout => ?IDLE_TIMEOUT
 	}),
