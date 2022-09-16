@@ -214,10 +214,9 @@ start() {
         -env DROP_LOG_DIR ${DROP_LOG_DIR} \
         -env DROP_VIP ${DROP_VIP} \
         -env DROP_VIP_IFACE ${DROP_VIP_IFACE} \
+        -noinput \
+        -noshell \
         -s main
-        # -noinput \
-        # -noshell \
-        # -s main
 
         # -noinput
         # -noshell

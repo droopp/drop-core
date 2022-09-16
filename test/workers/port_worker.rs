@@ -40,7 +40,12 @@ fn process(args: Vec<String>){
 
     log(format!("start working / args={:?}", args));
 
-    let sleep = args[0].parse::<u64>().unwrap();
+    let sleep = match args.len() {
+        0 => 0,
+        _ => args[0].parse().unwrap()
+    };
+ 
+
     let wait_secs = Duration::from_millis(sleep);
 
     loop {
