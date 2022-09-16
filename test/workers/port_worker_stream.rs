@@ -31,9 +31,9 @@ fn process(args: Vec<String>){
 
     log(format!("start working / args={:?}", args));
 
-    let secs = match args.len() {
-        0 => 3000,
-        _ => args[0].parse().unwrap()
+    let secs = match args.len() == 1 {
+        false => 3000,
+        true => args[0].parse().unwrap()
     };
     
     let wait_secs = time::Duration::from_millis(secs);

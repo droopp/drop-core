@@ -40,9 +40,9 @@ fn process(args: Vec<String>){
 
     log(format!("start working / args={:?}", args));
 
-    let sleep = match args.len() {
-        0 => 0,
-        _ => args[0].parse().unwrap()
+    let sleep = match args.len() == 1 {
+        false => 0,
+        true => args[0].parse().unwrap()
     };
  
 
