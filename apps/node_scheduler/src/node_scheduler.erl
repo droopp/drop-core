@@ -118,7 +118,7 @@ handle_info(timeout, State) ->
 
     %% system info stream worker
 
-    ppool_worker:start_worker(node_info_stream,
+    full_limit=ppool_worker:start_worker(node_info_stream,
                              {cmd(lists:concat(["node_info_stream/node_info_stream",
                                     " --node ", node(),                      %% current node
                                     " --interval ", ?NODE_INFO_INTERVAL,     %% interval in ms  
@@ -129,7 +129,7 @@ handle_info(timeout, State) ->
 
     %% collect node info from cluster
 
-    ppool_worker:start_worker(node_collector,
+    full_limit=ppool_worker:start_worker(node_collector,
                              {cmd(lists:concat(["node_collector/node_collector",
                                     " --db ", os:getenv("DROP_VAR_DIR") ,"/db",  %% db file location
                                     " --flush-count ", ?NODE_CLTR_FLUSH_CNT,     %% in memory cnt to flush to db
@@ -142,7 +142,7 @@ handle_info(timeout, State) ->
 
     %% flower
 
-    ppool_worker:start_worker(flower, 
+    full_limit=ppool_worker:start_worker(flower, 
                               {cmd(lists:concat(["flower/flower",
                                    " --flower-dir ", os:getenv("DROP_VAR_DIR") ,"/flows", %% flows dir with YAML files
                                    " --drop-name ", "flower"]),                           %% marker to collect stats
@@ -152,11 +152,11 @@ handle_info(timeout, State) ->
 
     %% scheduler
 
-    ppool_worker:start_worker(flower_sc_stream,         
+    full_limit=ppool_worker:start_worker(flower_sc_stream,         
                               {cmd(lists:concat(["flower_sc_stream/flower_sc_stream",
                                     " --var-dir ", os:getenv("DROP_VAR_DIR"),          %% var dir with /db and /flows
                                     " --node ", node(),                                %% current node
-                                    " --interval, ", ?FLOWER_SC_INTERVAL,               %% scheduler interval
+                                    " --interval ", ?FLOWER_SC_INTERVAL,               %% scheduler interval
                                     " --vip ", os:getenv("DROP_VIP"),                  %% VIP ip addr
                                     " --vip-iface ", os:getenv("DROP_VIP_IFACE"),       %% VIP net iface
                                     " --drop-name ", "flower_sc_stream"]),             %% marker to collect stats
@@ -166,23 +166,23 @@ handle_info(timeout, State) ->
 
     %% api
 
-    {'ok', 'full_limit'} = ppool_worker:start_all_workers(node_api, 
+    {ok, full_limit} = ppool_worker:start_all_workers(node_api, 
                                     {{node_scheduler, api}, ?NODE_API_TIMEOUT}
     ),
 
     %% collect metric about actors
 
-    ok=ppool_worker:start_worker(node_info_internal_stream, 
+    full_limit=ppool_worker:start_worker(node_info_internal_stream, 
                               {{node_scheduler, node_info_internal_stream}, ?NODE_INFO_IN_TIMEOUT}
     ),
 
     %% multicast zeroconf
 
-    ok=ppool_worker:start_worker(node_mcast_stream, 
+    full_limit=ppool_worker:start_worker(node_mcast_stream, 
                               {{node_watch, node_mcast_stream}, ?NODE_MCAST_TIMEOUT}
     ),
 
-    ok=ppool_worker:start_worker(node_mcast_api, 
+    full_limit=ppool_worker:start_worker(node_mcast_api, 
                               {{node_watch, node_mcast_api}, ?NODE_MCAST_API_TIMEOUT}
     ),
 

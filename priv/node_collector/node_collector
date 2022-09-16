@@ -1,0 +1,9 @@
+#!/bin/bash
+
+#
+# Stub
+#
+
+while IFS='$\n' read -r msg; do
+    echo $msg
+done

@@ -1,0 +1,10 @@
+#!/bin/bash
+
+#
+# Stub
+#
+
+while true; do
+    echo "ok"
+    sleep 3
+done

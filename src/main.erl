@@ -21,9 +21,15 @@ start() ->
     %% process pool
     ok=application:start(ppool),
  
+    ok=application:start(node_scheduler),
+    ok=application:start(node_watch),
+ 
        ok.
 
 stop() ->
+
+     ok=application:stop(node_watch),
+     ok=application:stop(node_scheduler),
 
      %% process pool
      ok=application:stop(ppool),
