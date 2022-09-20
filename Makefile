@@ -2,13 +2,15 @@ PROJECT = ppool
 PROJECT_DESCRIPTION = Core App /Distribued Reliable Operation Platform
 PROJECT_VERSION = 0.1.0
 
-# ERLC_OPTS= -Dtrace
+ERLC_OPTS= -Dtrace
 # ERL_COMPILE_FLAGS= -Dtrace
 EUNIT_ERL_OPTS = -kernel start_pg true
 
 BUILD_DEPS = cowboy
 dep_cowboy_commit = 2.9.0
 DEP_PLUGINS = cowboy
+
+export PATH := ${PATH}:/opt/erlang/bin
 
 include erlang.mk
 
@@ -40,6 +42,4 @@ clean_test_workers:
 	@rm priv/node_info_stream/node_info_stream
 	@rm priv/flower/flower
 	@rm priv/node_collector/node_collector
-
-build_workers:
 
