@@ -1,18 +1,4 @@
 
--ifdef(debug2).
-    -define(Debug2(M), io:format("~p~n", [M])).
--else.
-    -define(Debug2(M), void).
--endif.
-
--ifdef(debug3).
-    -define(Debug3(M), io:format("~p~n", [M])).
--else.
-    -define(Debug3(M), void).
--endif.
-
-
-
 -define(NODE_API_WORKERS, 10).
 -define(NODE_API_TIMEOUT, 5000).
 
@@ -22,6 +8,8 @@
 
 -define(NODE_CLTR_WORKERS, 1).
 -define(NODE_CLTR_TIMEOUT, 10000).
+-define(NODE_CLTR_FLUSH_CNT, 1000).
+-define(NODE_CLTR_FLUSH_TIME, 5).
 
 -define(NODE_INFO_IN_WORKERS, 1).
 -define(NODE_INFO_IN_TIMEOUT, 10000).
@@ -40,4 +28,4 @@
 -define(NODE_MCAST_API_WORKERS, 1).
 -define(NODE_MCAST_API_TIMEOUT, 10000).
 
-
+-define(RUNC, "docker run --rm --log-driver none -i -u drop -w /home/drop/").

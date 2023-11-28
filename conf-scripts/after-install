@@ -1,12 +1,32 @@
 #!/bin/bash
 
 useradd drop-core
+chown -R drop-core:drop-core /opt/drop-core
 
-if [ -f /var/spool/cron/drop-core ]; then
-    echo "cron exist"
+useradd -m -s /bin/bash drop-core
+chmod 700 /home/drop-core
+
+if [[ "$(uname -s)" == "Linux" && -r /etc/debian_version ]]; then
+    if [ -f /var/spool/cron/crontabs/drop-core ]; then
+      echo "cron exist"
+    else
+      echo "* * * * * /opt/drop-core/scripts/drop-rotate >/dev/null 2>&1" >> /var/spool/cron/crontabs/drop-core
+      chown drop-core:drop-core /var/spool/cron/crontabs/drop-core
+      chmod 600 /var/spool/cron/crontabs/drop-core
+      echo "cron ok"
+    fi
+
+elif [[ "$(uname -s)" == "Linux" && -r /etc/redhat-release ]]; then
+    if [ -f /var/spool/cron/drop-core ]; then
+      echo "cron exist"
+    else
+      echo "* * * * * /opt/drop-core/scripts/drop-rotate >/dev/null 2>&1" >> /var/spool/cron/drop-core
+      chown drop-core:drop-core /var/spool/cron/drop-core
+      chmod 600 /var/spool/cron/drop-core
+      echo "cron ok"
+    fi
 else
-  echo "* * * * * /opt/drop-core/scripts/drop-rotate >/dev/null 2>&1" >> /var/spool/cron/drop-core
-  echo "cron ok"
+    echo "This script only supports Debian and CentOS."
 fi
 
 cp /opt/drop-core/conf/drop-core.service /etc/systemd/system/ && systemctl daemon-reload
@@ -27,7 +47,6 @@ if [ ! -f /etc/drop-env ]; then
     echo "" > /etc/drop-env
     chown drop-core:drop-core /etc/drop-env
 fi
-
 
 ## start service
 # systemctl restart drop-core

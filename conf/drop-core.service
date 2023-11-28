@@ -1,6 +1,6 @@
 
 [Unit]
-Description=Core DROP App /Distribued Reliable Operation Platform
+Description=Core Drop App
 
 [Service]
 Type=simple

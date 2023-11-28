@@ -5,12 +5,11 @@
 -export([start_link/0,
          call/4,
          cmd/2,
-         cmd2/3,
+         cmd/3,
          api/1,
          node_info_internal_stream/1,
          try_start/1,
          restart/0
-         
         ]).
 
 %% gen_server.
@@ -29,11 +28,10 @@
 
 -include("node_scheduler.hrl").
 -include("../../src/ppool.hrl").
+-include("../../apps/drop_api/src/api_handler.hrl").
 
 
 %% API.
-
--spec start_link() -> {ok, pid()}.
 start_link() ->
 	gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
@@ -42,7 +40,6 @@ start_link() ->
 
 init([]) ->
 	{ok, #state{}, 0}.
-
 
 restart() ->
     gen_server:call(?MODULE, restart).
@@ -61,15 +58,12 @@ handle_call(restart, _From, State) ->
 
 	{reply, ok, State, 0};
 
-
 handle_call(_Request, _From, State) ->
 	{reply, ignored, State}.
 
 
-
 handle_cast(_Msg, State) ->
 	{noreply, State}.
-
 
 
 handle_info(timeout, State) ->
@@ -100,83 +94,98 @@ handle_info(timeout, State) ->
     ppool:start_pool(ppool, {node_mcast_api, ?NODE_MCAST_API_WORKERS, 
                             {worker, start_link, []} }),
 
-
     %% link ppools
     
+    %% node and processes stats
     ppool_worker:subscribe(node_info_stream, {node_collector, <<"no">>, dall}),
 
+    %% processes cnt err timeout elapsed 
     ppool_worker:subscribe(node_info_internal_stream, {node_collector, <<"no">>, dall}),
     
-    ppool_worker:subscribe(node_mcast_stream, {node_collector, <<"system0::">>, sone}),
+    %% system0 echo from all nodes in cluster
+    ppool_worker:subscribe(node_mcast_stream, {node_collector, <<"system0::">>, one}),
 
+    %% api calls thru executor (flower)
     ppool_worker:subscribe(flower, {node_api, <<"system::">>, one}),
 
-    ppool_worker:subscribe(flower_sc_stream, {flower, <<"system::">>, sone}),
+    %% scheduler calls
+    %% system - to pools
+    %% system0 - to other nodes
+    ppool_worker:subscribe(flower_sc_stream, {flower, <<"system::">>, one}),
 
-    ppool_worker:subscribe(flower_sc_stream, {node_mcast_api, <<"system0::">>, sone}),
+    ppool_worker:subscribe(flower_sc_stream, {node_mcast_api, <<"system0::">>, one}),
 
 
-    %% System info stream worker
+    %% system info stream worker
 
-    ppool_worker:start_worker(node_info_stream,
-                             {cmd(lists:concat(["node_info_stream/node_info_stream ",
-                                    node(), " ", ?NODE_INFO_INTERVAL, 
-                                    " -drop node_info_stream"]),
-                                   "node_info_stream.log"
-                                  ), ?NODE_INFO_TIMEOUT}
+    {ok, full_limit}=ppool_worker:start_all_workers(node_info_stream,
+                             {cmd(lists:concat(["node_info_stream/node_info_stream",
+                                    " --node ", node(),                      %% current node
+                                    " --interval ", ?NODE_INFO_INTERVAL,     %% interval in ms  
+                                    " --drop ", "node_info_stream"]),   %% marker to collect stats
+                                   "node_info_stream.log"                    %% log file name
+                                  ), ?NODE_INFO_TIMEOUT}                     %% process timeout
     ),
 
     %% collect node info from cluster
 
-    ppool_worker:start_worker(node_collector,
-                             {cmd(lists:concat(["node_collector/node_collector ",
-                                    os:getenv("DROP_VAR_DIR") ,"/db 1000 5 ", 
-                                    " -drop node_collector"]),
-                                   "node_collector.log"
-                                  ), ?NODE_CLTR_TIMEOUT}
+    {ok, full_limit}=ppool_worker:start_all_workers(node_collector,
+                             {cmd(lists:concat(["node_collector/node_collector",
+                                    " --db ", os:getenv("DROP_VAR_DIR") ,"/db",  %% db file location
+                                    " --flush-count ", ?NODE_CLTR_FLUSH_CNT,     %% in memory cnt to flush to db
+                                    " --flush-time ", ?NODE_CLTR_FLUSH_TIME,     %% after ms to flush to db
+                                    " --drop ", "node_collector"]),         %% marker to collect stats
+                                   "node_collector.log"                          %% log file name
+                                  ), ?NODE_CLTR_TIMEOUT}                         %% process timeout
     ),
 
-    %% api
-
-    ppool_worker:start_all_workers(node_api, 
-                              {{node_scheduler, api}, ?NODE_API_TIMEOUT}
-    ),
-
-    ppool_worker:start_worker(node_info_internal_stream, 
-                              {{node_scheduler, node_info_internal_stream}, ?NODE_INFO_IN_TIMEOUT}
-    ),
 
     %% flower
 
-    ppool_worker:start_all_workers(flower, 
-                              {cmd(lists:concat(["flower/flower ",
-                                    os:getenv("DROP_VAR_DIR") ,"/flows/ ",
-                                    " -drop flower"]),
+    {ok, full_limit}=ppool_worker:start_all_workers(flower, 
+                              {cmd(lists:concat(["flower/flower",
+                                   " --flower-dir ", os:getenv("DROP_VAR_DIR") ,"/flows", %% flows dir with YAML files
+                                   " --drop ", "flower"]),                           %% marker to collect stats
                                    "flower.log"
                                   ), ?FLOWER_TIMEOUT}
     ),
 
     %% scheduler
 
-    ppool_worker:start_worker(flower_sc_stream,         
-               {cmd(lists:concat(["flower_sc_stream/flower_sc_stream ",
-                              os:getenv("DROP_VAR_DIR"), " ", node(), " ",
-                              ?FLOWER_SC_INTERVAL, " ",
-                              os:getenv("DROP_VIP"), " ", os:getenv("DROP_VIP_IFACE"), 
-                              " -drop flower_sc_stream"]),
-                             "flower_sc_stream.log"
-                             ), ?FLOWER_SC_TIMEOUT}
+    {ok, full_limit}=ppool_worker:start_all_workers(flower_sc_stream,         
+                              {cmd(lists:concat(["flower_sc_stream/flower_sc_stream",
+                                    " --var-dir ", os:getenv("DROP_VAR_DIR"),          %% var dir with /db and /flows
+                                    " --node ", node(),                                %% current node
+                                    " --interval ", ?FLOWER_SC_INTERVAL,               %% scheduler interval
+                                    " --vip ", os:getenv("DROP_VIP"),                  %% VIP ip addr
+                                    " --vip-iface ", os:getenv("DROP_VIP_IFACE"),       %% VIP net iface
+                                    " --drop ", "flower_sc_stream"]),             %% marker to collect stats
+                                    "flower_sc_stream.log"
+                                    ), ?FLOWER_SC_TIMEOUT}
+    ),
+
+    %% api
+
+    {ok, full_limit}=ppool_worker:start_all_workers(node_api, 
+                                    {{node_scheduler, api}, ?NODE_API_TIMEOUT}
+    ),
+
+    %% collect metric about actors
+
+    {ok, full_limit}=ppool_worker:start_all_workers(node_info_internal_stream, 
+                              {{node_scheduler, node_info_internal_stream}, ?NODE_INFO_IN_TIMEOUT}
     ),
 
     %% multicast zeroconf
 
-    ppool_worker:start_worker(node_mcast_stream, 
+    {ok, full_limit}=ppool_worker:start_all_workers(node_mcast_stream, 
                               {{node_watch, node_mcast_stream}, ?NODE_MCAST_TIMEOUT}
     ),
 
-    ppool_worker:start_worker(node_mcast_api, 
+    {ok, full_limit}=ppool_worker:start_all_workers(node_mcast_api, 
                               {{node_watch, node_mcast_api}, ?NODE_MCAST_API_TIMEOUT}
     ),
+
 
 
 	  {noreply, State};
@@ -194,21 +203,20 @@ code_change(_OldVsn, State, _Extra) ->
 
 
 
-cmd2(Img, Cmd, Log) ->
+cmd(Img, Cmd, Log) ->
 
-    case string:find(Img, "plugin") of
+    R = case string:find(Img, "plugin") of
        nomatch ->
-            R = lists:concat(["docker run --rm --log-driver none -i -u drop -w /home/drop/",
+            lists:concat([?RUNC,
                               " ",  Img, " ", Cmd,
                               " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log]);
         _ ->
-            R = lists:concat([os:getenv("DROP_VAR_DIR"),"/plugins/", Cmd,
+            lists:concat([os:getenv("DROP_VAR_DIR"),"/plugins/", Cmd,
                             " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log])
  
     end,
 
-     ?Debug2({cmd, R}),
-
+     ?Trace({cmd, R}),
       R.
 
 
@@ -217,7 +225,7 @@ cmd(Cmd, Log) ->
    R = lists:concat([os:getenv("DROP_HOME"),"/priv/", Cmd, 
                      " 2>>", os:getenv("DROP_LOG_DIR"), "/", Log]),
 
-    ?Debug2({cmd, R}),
+    ?Trace({cmd, R}),
 
    R.
 
@@ -236,8 +244,7 @@ try_start(N) ->
 
 call(Type, F, Name, Cmd) ->
 
-    ?Debug2({?MODULE, Type, F, Name, Cmd}),
-
+    ?Trace({?MODULE, Type, F, Name, Cmd}),
 
     Tf = fun(P0, Cmd0) ->
             try F(P0, Cmd0) of
@@ -249,7 +256,6 @@ call(Type, F, Name, Cmd) ->
                       ok
             end
         end,
-
 
     Get_memb = fun(N0, F0) ->
                       try F0(N0) of
@@ -267,22 +273,20 @@ call(Type, F, Name, Cmd) ->
         end,
 
 
-    case Type of
+    Res = case Type of
 
         local ->
-            [Tf(P, Cmd)||P <- [X || X<- Get_memb(Name, fun pg2:get_members/1), 
+            [Tf(P, Cmd)||P <- [X || X<- Get_memb(Name, fun pg:get_local_members/1), 
                                                    node(X)=:=node()]];
-
-        near ->
-            [Tf(P, Cmd)||P <- [ Get_memb(Name, fun pg2:get_closest_pid/1)]];
-
         all ->
-            [Tf(P, Cmd)||P <-  Get_memb(Name, fun pg2:get_members/1)];
+            [Tf(P, Cmd)||P <- [X || X<- Get_memb(Name, fun pg:get_members/1)]];
  
         Node ->
-            [Tf(P, Cmd)||P <- [X || X <- Get_memb(Name, fun pg2:get_members/1), node(X)=:=Node]]
+            [Tf(P, Cmd)||P <- [X || X <- Get_memb(Name, fun pg:get_members/1), node(X)=:=Node]]
  
-    end.
+    end,
+
+    Res.
 
 
 %%
@@ -291,7 +295,6 @@ call(Type, F, Name, Cmd) ->
 %% tick every X secs
 %%  
 %%
-
 
 average([]) ->
     0;
@@ -334,9 +337,9 @@ get_worker_info(N) ->
 node_info_loop(F) ->
 
   %% ppools error & timeout
-  %%
-   
-  List=[X||X<-pg2:which_groups(), 
+  ?Trace({start_node_in_worker, F}), 
+  
+  List=[X||X<-pg:which_groups(), 
             lists:suffix("_ev", atom_to_list(X))=/=true,
             X=/=ppool
        ],
@@ -361,11 +364,8 @@ node_info_loop(F) ->
 
 
 node_info_internal_stream(F) ->
-    receive
-        _ -> 
-          ?Debug2({start_node_in_worker, F}), 
-            node_info_loop(F)
-    end.
+          ?Trace({start_node_in_worker, F}), 
+            node_info_loop(F).
 
 %%
 %%
@@ -376,15 +376,15 @@ node_info_internal_stream(F) ->
 
 call_api(Msg) ->
 
-           ?Debug3({recv, Msg}),
+           ?Trace({recv, Msg}),
 
             R = binary:replace(Msg, <<"\n">>, <<>>),
 
             [_|[Tp|[Fn|[Name|A]]]] = binary:split(R, <<"::">>, [global]),
 
-           ?Debug3({Tp, Fn, Name, A}),
+           ?Trace({Tp, Fn, Name, A}),
 
-           case erlang:binary_to_atom(Fn, latin1) of
+           Ret = case erlang:binary_to_atom(Fn, latin1) of
 
                cast_nodes ->
 
@@ -425,8 +425,6 @@ call_api(Msg) ->
                              erlang:binary_to_integer(Cnt)}
                               );
 
-
-
                stop_pool ->
                    
                     _Res = call(erlang:binary_to_atom(Tp, latin1),
@@ -435,15 +433,13 @@ call_api(Msg) ->
                             erlang:binary_to_atom(Name, latin1)
                              );
 
-
-
                start_worker ->
 
                    [Img, Cmd, Log, Tm] = A,
 
                    _Res = call(erlang:binary_to_atom(Tp, latin1),
                             fun(N, {I, C, L, T}) -> ppool_worker:start_worker(N, 
-                                             {cmd2(I, C, L), T})
+                                             {cmd(I, C, L), T})
  
                             end,
                             erlang:binary_to_atom(Name, latin1),
@@ -468,7 +464,6 @@ call_api(Msg) ->
                             false
                              );
 
-
                stop_all_workers ->
 
                    [Cnt|_] = A,
@@ -484,17 +479,14 @@ call_api(Msg) ->
                              );
 
 
-
-
                start_all_workers ->
-
 
                    [Img, Cmd, Log, Tm] = A,
 
                    _Res = call(erlang:binary_to_atom(Tp, latin1),
                             fun(N, {I, C, L, T}) -> 
                                     ppool_worker:start_all_workers(N, 
-                                                                   {cmd2(I, C, L), 
+                                                                   {cmd(I, C, L), 
                                                                     T})
                             end,
                             erlang:binary_to_atom(Name, latin1),
@@ -566,35 +558,6 @@ call_api(Msg) ->
                             <<Args/binary, <<"\n">>/binary>>
                              );
 
-
-               change_limit ->
-
-                   [Cnt|_] = A,
-
-                   _Res = call(erlang:binary_to_atom(Tp, latin1),
-                            fun(N, C) -> 
-                                    ppool_worker:change_limit(N, C)
- 
-                            end,
-                            erlang:binary_to_atom(Name, latin1),
-                            erlang:binary_to_integer(Cnt)
-                           
-                             );
-
-               call_workers ->
-
-                   [Args|_] = A,
-
-                   _Res = call(erlang:binary_to_atom(Tp, latin1),
-                            fun(N, C) -> 
-                                    ppool_worker:call_workers(N, C)
- 
-                            end,
-                            erlang:binary_to_atom(Name, latin1),
-                             <<Args/binary, <<"\n">>/binary>>
-                             );
-                
-
                cast_all_workers ->
 
                    [Args|_] = A,
@@ -602,20 +565,6 @@ call_api(Msg) ->
                    _Res = call(erlang:binary_to_atom(Tp, latin1),
                             fun(N, C) -> 
                                     ppool_worker:cast_all_workers(N, C)
- 
-                            end,
-                            erlang:binary_to_atom(Name, latin1),
-                             <<Args/binary, <<"\n">>/binary>>
-                             );
-
-
-               stream_all_workers ->
-
-                   [Args|_] = A,
-
-                   _Res = call(erlang:binary_to_atom(Tp, latin1),
-                            fun(N, C) -> 
-                                    ppool_worker:stream_all_workers(N, C)
  
                             end,
                             erlang:binary_to_atom(Name, latin1),
@@ -654,16 +603,12 @@ call_api(Msg) ->
                              }
                              );
 
-
                _M ->
-                 ok,
-                  ?Debug3({unknow_call_api, _M})
-
+                 ?Trace({unknow_call_api, _M}),
+                 ok
            end,
 
-           ok.
-
-
+           Ret.
 
 
 api(F) ->
@@ -672,13 +617,12 @@ api(F) ->
          Msg ->
 
             Msgs = binary:split(Msg, ?SPLIT_MSG_SEQ, [global]),
-             ?Debug3({recv, Msgs}),
+             ?Trace({recv, Msgs}),
 
-             lists:foreach(fun(M) -> call_api(M) end,  Msgs),
+              lists:foreach(fun(M) -> call_api(M) end,  Msgs),
 
-               F!{self(), {data, [<<"ok">>]}},
+                F!{self(), {data, [<<"ok">>]}},
 
              api(F)
-
 
     end.

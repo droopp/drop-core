@@ -21,6 +21,7 @@
 }).
 
 -include("node_watch.hrl").
+-include("../../src/ppool.hrl").
 
 %% API.
 
@@ -38,12 +39,11 @@ cast_nodes(Msg) ->
 
 init([]) ->
 
-    pg2:create(?MODULE),
-     pg2:join(?MODULE, self()),
+    pg:join(?MODULE, self()),
 
-    net_kernel:monitor_nodes(true, [nodedown_reason]),
+     ok=net_kernel:monitor_nodes(true, [nodedown_reason]),
 
-    erlang:send_after(?TIMEOUT, self(), ping_nodes),
+     erlang:send_after(?TIMEOUT, self(), ping_nodes),
      erlang:send_after(?TIMEOUT, self(), ping_world),
 
 	{ok, #state{nodes=[node()]}}.
@@ -56,45 +56,42 @@ handle_call(_Request, _From, State) ->
 
 handle_cast({cast_nodes, Msg}, State) ->
 
-    ?Debug3({node_watch_nodes, Msg}),
+    ?Trace({node_watch_nodes, Msg}),
 
      Nodes = [erlang:list_to_atom(erlang:binary_to_list(X))||
               X<-binary:split(Msg, <<",">>, [global])],
 
-      ?Debug3({register_nodes, Nodes}),
+      ?Trace({register_nodes, Nodes}),
 	    {noreply, State#state{nodes=Nodes}};
 
 
 handle_cast(_Msg, State) ->
-    ?Debug3({_Msg}),
+    ?Trace({_Msg}),
 	{noreply, State}.
 
 
 
 handle_info(ping_nodes, #state{nodes=N}=State) ->
 
-    %% error_logger:info_msg("pinging nodes ~p~n",[net_adm:host_file()]),
-       lists:foreach(fun(X) ->
-                             net_adm:ping(X)
-                     end,
-                    N),
+    lists:foreach(fun(X) ->
+                         net_adm:ping(X)
+                  end,
+                  N),
 
     %% disconnect no list nodes
-    %%
-
     D = fun(I, L) -> lists:all(fun(X) -> X=/=I end, L) end,
       Down = [X||X<-nodes(), D(X, N)],
 
-       ?Debug3({disconnect_nodes, N, nodes(), Down}),
+       ?Trace({disconnect_nodes, N, nodes(), Down}),
+
        lists:foreach(fun(X) ->
                              erlang:disconnect_node(X)
                      end,
                      Down),
 
-    erlang:send_after(?TIMEOUT, self(), ping_nodes),
+          erlang:send_after(?TIMEOUT, self(), ping_nodes),
 
 	{noreply, State};
-
 
 
 handle_info(ping_world, State) ->
@@ -104,7 +101,7 @@ handle_info(ping_world, State) ->
                                     os:getenv("HOSTNAME0"), "\n"
                                   ]),
 
-        node_scheduler:call(node(),
+        _ = node_scheduler:call(node(),
                             fun(N, C) -> 
                                     ppool_worker:cast_worker(N, C)
                             end,
@@ -112,7 +109,7 @@ handle_info(ping_world, State) ->
                             Msg
                            ),
 
-            erlang:send_after(?TIMEOUT, self(), ping_world),
+          erlang:send_after(?TIMEOUT, self(), ping_world),
 
 	{noreply, State};
 
@@ -129,7 +126,7 @@ handle_info({nodedown, Node, InfoList}, State)->
                                        "nodedown::", 
                                        erlang:atom_to_list(I), "\n"]),
 
-        node_scheduler:call(node(),
+        _ = node_scheduler:call(node(),
                             fun(N, C) -> 
                                     ppool_worker:call_worker(N, C)
                             end,
@@ -142,15 +139,14 @@ handle_info({nodedown, Node, InfoList}, State)->
 
 handle_info({nodeup, Node, _InfoList}, State) ->
 
-    error_logger:warning_msg("node ~p is up~n",[Node]),
-
+     error_logger:warning_msg("node ~p is up~n",[Node]),
 
         Msg=erlang:list_to_bitstring(["system::node_watch::", 
                                        erlang:atom_to_list(Node), "::", 
                                        "nodeup::", 
-                                       "nodeup..", "\n"]),
+                                       "nodeup", "\n"]),
 
-        node_scheduler:call(node(),
+        _ = node_scheduler:call(node(),
                             fun(N, C) -> 
                                     ppool_worker:call_worker(N, C)
                             end,
@@ -176,7 +172,6 @@ code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
 
-
 %%
 %%
 %% mcast stream worker 
@@ -184,18 +179,22 @@ code_change(_OldVsn, State, _Extra) ->
 %%
 
 receiver(F) ->
+
    receive
        {udp, _Socket, _IP, _InPortNo, Packet} ->
-           ?Debug2({_IP, _InPortNo, Packet}),
+          ?Trace({_IP, _InPortNo, Packet}),
 
             F!{self(), {data, [Packet]}},
  
            receiver(F);
+
        _Any -> 
-            ?Debug2({mcast_recv, _Any}),
+            ?Trace({mcast_recv, _Any}),
            receiver(F)
 
    after 10000 ->
+        ?Trace({timeout, receiver}),
+
          F!{self(), {data, [<<"ok">>]}},
            receiver(F)
    end.
@@ -204,29 +203,22 @@ receiver(F) ->
 node_mcast0(F) ->
 
   %% catch multicast msg
-  %%
-  
-  ?Debug2({node_mcast0_IS_MCAST, os:getenv("IS_MCAST", "0")}), 
 
-  case os:getenv("IS_MCAST", "0") of
-      "1" -> 
-          S=open(?ADDR, ?PORT);
+  S = case os:getenv("DROP_IS_MCAST", "n") of
+      "y" -> 
+          open(?ADDR, ?PORT);
        _ ->
-            S=open2(?ADDR, ?PORT)
-  end,
+            open2(?ADDR, ?PORT)
+   end,
 
-   gen_udp:controlling_process(S, self()),
+   ok=gen_udp:controlling_process(S, self()),
+
     receiver(F).
    
 
 node_mcast_stream(F) ->
-    receive
-        _ -> 
-         F!{self(), {data, [<<"ok">>]}},
-
-          ?Debug2({node_mcast0, F}), 
-            node_mcast0(F)
-    end.
+    
+    node_mcast0(F).
 
 
 
@@ -241,11 +233,9 @@ open(Addr,Port) ->
                                {multicast_ttl, ?MCATS_TTL},
                                {multicast_loop,false}, binary]),
 
-   inet:setopts(S,[{add_membership,{Addr,{0,0,0,0}}}]),
+   ok=inet:setopts(S,[{add_membership,{Addr,{0,0,0,0}}}]),
 
    S.
-
-
 
 
 %%
@@ -254,12 +244,9 @@ open(Addr,Port) ->
 %%  
 %%
 
-
-
 node_mcast_api02(Msg) ->
 
   %% send multicast msg
-  %%
   
     {ok, S} = gen_udp:open(?PORT2,
                            [binary,
@@ -274,6 +261,7 @@ node_mcast_api02(Msg) ->
      case R of
         {error,enoent} ->
             error_logger:error_msg("MCAST DISABLED and NO HOSTS!");
+
         ListH ->
 
             lists:foreach(
@@ -291,8 +279,7 @@ node_mcast_api02(Msg) ->
 node_mcast_api0(Msg) ->
 
   %% send multicast msg
-  %%
-  
+
     {ok, S} = gen_udp:open(?PORT,
                            [binary,
                             {active, false},
@@ -301,7 +288,7 @@ node_mcast_api0(Msg) ->
                             {add_membership, {?ADDR, {0,0,0,0}}}
                            ]),
 
-            gen_udp:send(S, ?ADDR, ?PORT, Msg),
+            ok=gen_udp:send(S, ?ADDR, ?PORT, Msg),
             gen_udp:close(S).
 
 
@@ -309,15 +296,14 @@ node_mcast_api(F) ->
     receive
         Msg -> 
 
-          ?Debug2({node_mcast_api0, F, body_to_msg(Msg)}), 
+          ?Trace({node_mcast_api, F, body_to_msg(Msg)}), 
 
-            case os:getenv("IS_MCAST", "0") of
-                "1" -> 
+            case os:getenv("DROP_IS_MCAST", "n") of
+                "y" -> 
                     node_mcast_api0(body_to_msg(Msg));
                 _ ->
                     node_mcast_api02(body_to_msg(Msg))
             end,
-
             
               F!{self(), {data, [<<"ok">>]}},
 
@@ -327,6 +313,7 @@ node_mcast_api(F) ->
 
 
 body_to_msg(Body) ->
+
     case binary:last(Body) =:= 10 of
         true ->
             binary:part(Body, {0, byte_size(Body)-1});
@@ -335,5 +322,3 @@ body_to_msg(Body) ->
             Body
 
     end.
-
-

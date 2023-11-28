@@ -1,5 +1,3 @@
-
-
 -module(main).
 -export([
          start/0,
@@ -10,38 +8,42 @@
 start() ->
 
     %% http api
-    application:start(crypto),
-    application:start(asn1),
-    application:start(public_key),
-    application:start(ssl),
+    ok=application:start(crypto),
+    ok=application:start(asn1),
+    ok=application:start(public_key),
+    ok=application:start(ssl),
 
-    application:start(cowlib),
-    application:start(ranch),
-    application:start(cowboy),
-    application:start(drop_api),
+    ok=application:start(cowlib),
+    ok=application:start(ranch),
+    ok=application:start(cowboy),
+    ok=application:start(drop_api),
 
-    application:start(ppool),
-    application:start(node_scheduler),
-    application:start(node_watch),
+    %% process pool
+    ok=application:start(ppool),
+ 
+    ok=application:start(node_scheduler),
+    ok=application:start(node_watch),
  
        ok.
 
 stop() ->
 
-     application:stop(node_watch),
-     application:stop(node_scheduler),
-     application:stop(ppool),
+     ok=application:stop(node_watch),
+     ok=application:stop(node_scheduler),
+
+     %% process pool
+     ok=application:stop(ppool),
 
      %% http api
-     application:stop(drop_api),
-     application:stop(cowboy),
-     application:stop(ranch),
-     application:stop(cowlib),
+     ok=application:stop(drop_api),
+     ok=application:stop(cowboy),
+     ok=application:stop(ranch),
+     ok=application:stop(cowlib),
 
-     application:stop(ssl),
-     application:stop(public_key),
-     application:stop(asn1),
-     application:stop(crypto),
+     ok=application:stop(ssl),
+     ok=application:stop(public_key),
+     ok=application:stop(asn1),
+     ok=application:stop(crypto),
 
        ok.
 

@@ -25,21 +25,22 @@ banner() {
 
 }
 
-source ~/.bashrc
+sleep 5
 
-export IS_MCAST="1"
+export $(xargs < /etc/drop-env)
+
+export DROP_IS_MCAST="y"
 
 if [ "x" == "x$DROP_STRATEGY" ] 
 then
-    export DROP_STRATEGY="elastic"
+    export DROP_STRATEGY="simple"
 fi
-
-# DROP_VIP_STRGY
-export IS_DROP_TLS="0"
 
 ERL_HOME=/opt/erlang/bin/
 DROP_HOME="$(dirname $(realpath $0))/../"
-DROP_SSL_OPT="server_certfile /ets/ssl/drop/drop-dist.pem server_keyfile /etc/ssl/drop/drop-dist.key"
+
+DROP_SSL_CRT="/etc/ssl/drop/drop-core.pem"
+
 DROP_LOG_DIR=/var/lib/drop/logs
 DROP_VAR_DIR=/var/lib/drop
 DROP_COOKIE=mesh1
@@ -75,7 +76,7 @@ if [ ! -f ${DROP_VAR_DIR}/drop-id ]; then
 fi
 
 if [ -f ${DROP_VAR_DIR}/drop-hosts ]; then
-    export IS_MCAST="0"
+    export DROP_IS_MCAST="n"
     cat ${DROP_VAR_DIR}/drop-hosts |awk '{printf "\47%s\47.\n", $1}END{print ""}' > ${DROP_HOME}/.hosts.erlang
 
 fi
@@ -87,12 +88,25 @@ DROP_VIP="127.0.0.1"
 
 if [ "x" == "x$DROP_IFACE" ]
 then
-    DROP_VIP_IFACE="$(/sbin/route |grep default |head -1|awk '{print $8}')"
+    DROP_VIP_IFACE="$(/sbin/ip ro |grep default |head -1|awk '{print $5}')"
+
+    # no found - set to loopback
+    if [ "x" == "x$DROP_VIP_IFACE" ]
+    then
+        DROP_VIP_IFACE=lo
+    fi
+
 else
     DROP_VIP_IFACE=$DROP_IFACE
 fi
 
-HOSTNAME="$(/sbin/ifconfig $DROP_VIP_IFACE | grep 'inet '| awk '{ print $2}')"
+# check if iface exist and up
+is_exist="$(/sbin/ip -f inet addr show $DROP_VIP_IFACE| wc -l)"
+if [[ "$is_exist" -eq "0" ]]; then
+    DROP_VIP_IFACE=lo
+fi
+
+HOSTNAME="$(/sbin/ip -f inet addr show $DROP_VIP_IFACE | grep -v :0 | sed -En -e 's/.*inet ([0-9.]+).*/\1/p')"
 HOSTNAME0=`env hostname -f`
 
 IS_SHORT="$(echo $HOSTNAME|grep '\.'|wc -l)"
@@ -157,21 +171,21 @@ stop_s() {
 
     if [ "$count" -eq "0" ]; then
         # core is down
-
-        iis=$(/sbin/ifconfig |grep $DROP_VIP_IFACE:0 |wc -l)
+    
+        iis=$(/sbin/ip a |grep $DROP_VIP_IFACE:0 |wc -l)
 
         if [[ "$iis" -ne "0" && "none" != "$DROP_VIP_STRGY" ]]; then
-            sudo /sbin/ifconfig $DROP_VIP_IFACE:0 down
+	    sudo /sbin/ip addr del $(/sbin/ip -o addr show label $DROP_VIP_IFACE:0|awk '{print $4}') dev $DROP_VIP_IFACE
         fi
 
         # clear state
-        /usr/bin/sqlite3 $DROP_VAR_DIR/db/node_collector.db "UPDATE node_world SET active = 0 WHERE date < DATETIME('NOW', '-1 minutes');"
+        /opt/drop-core/priv/flower_sc_stream/flower_sc_stream --op make_hosts --var-dir $DROP_VAR_DIR --node $DROP_NAME
 
     else
 
         # check network change
 
-        cip=$(ps -aux|grep beam.smp|grep drop-core|grep -v grep|cut -d'@' -f 2|awk '{print $1}')
+        cip=$(ps -aux|grep beam.smp|grep drop-core|grep -v grep| cut -d'@' -f 2|awk '{print $1}')
         if [ "$cip" != "$HOSTNAME" ]; then
             sudo systemctl restart drop-core
         fi
@@ -201,7 +215,7 @@ stop_s() {
 start() {
 
     banner
-
+    
     # stop prev epmd if exist
     cepmd=$(ps -aux|grep epmd|grep -v grep |awk '{print $2}')
     if [ "$cepmd" != "" ]; then
@@ -210,6 +224,12 @@ start() {
     fi
 
     cd ${DROP_HOME}
+
+    SSL_OPTS=""
+    if [ -f ${DROP_SSL_CRT}  ]; then
+        SSL_OPTS="-proto_dist inet_tls -ssl_dist_opt server_certfile ${DROP_SSL_CRT}"
+    fi
+
 
     # start
     exec erl \
@@ -231,7 +251,7 @@ start() {
         -sasl error_logger_mf_dir \"${DROP_LOG_DIR}\" \
         -sasl error_logger_mf_maxbytes ${DROP_LOGGER_MF_BYTES} \
         -sasl error_logger_mf_maxfiles ${DROP_LOGGER_MF_FILES} \
-        -kernel start_pg2 true \
+        -kernel start_pg true \
         -pa ${DROP_EBIN_ROOT} \
         -env NODE_NAME ${NODE_NAME} \
         -env HOSTNAME0 ${HOSTNAME0} \
@@ -240,9 +260,10 @@ start() {
         -env DROP_LOG_DIR ${DROP_LOG_DIR} \
         -env DROP_VIP ${DROP_VIP} \
         -env DROP_VIP_IFACE ${DROP_VIP_IFACE} \
-        -noinput \
         -noshell \
-        -s main
+        -noinput \
+        ${SSL_OPTS} \
+        -s main 
 
         # -noinput
         # -noshell

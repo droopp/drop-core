@@ -1,4 +1,4 @@
-#!/opt/drop-pyenv/bin/python
+#!/opt/drop-pyenv3/bin/python
 
 #
 # Flow scheduler worker
@@ -17,7 +17,6 @@ import json
 import sqlite3
 import glob
 import subprocess as sp
-from vip import private, cloud
 
 # API
 
@@ -42,17 +41,6 @@ def send(m):
 #  log  -  logging anything
 
 
-# _VIP_CMDS = [
-#     "sudo ifconfig {iface}:0 down",
-#     "sudo ifconfig {iface}:0 {vip} netmask 255.255.255.255 broadcast {vip}",
-#     "sudo arping -I {iface} -c 2 -s {vip} {vip}"
-# ]
-
-# _RSERV_CMDS = [
-#     "sudo ifconfig {iface}:0 down",
-# ]
-
-
 def main(p, node, t, vip, vip_iface):
     """
         t - time interval in secs
@@ -60,18 +48,13 @@ def main(p, node, t, vip, vip_iface):
     tb = time.time()
 
     # set vip
-
-    msg = read()
     _is_vip_set = 0
     _vip = vip
-
-    log("get message: " + msg)
 
     while 1:
 
         #  set clester network balancer
         #  get main node floating ip
-
         log("get main node..")
         m_nodes, m_cnt = get_active_nodes(p)
 
@@ -101,8 +84,10 @@ def main(p, node, t, vip, vip_iface):
             # not set or set to main
             if _is_vip_set == 0 or _is_vip_set == 1:
                 # set real server
-                make_vip(m_nodes, False, _vip, vip_iface)
-                _is_vip_set = 2
+                if make_vip(m_nodes, False, _vip, vip_iface) is None:
+                    _is_vip_set = 2
+                else:
+                    _is_vip_set = 0
 
             if time.time() - tb < int(t) * 5:
                 send("ok")
@@ -122,18 +107,20 @@ def main(p, node, t, vip, vip_iface):
 
         else:
 
-            # not set or set to main
-            if _is_vip_set == 0 or _is_vip_set == 2:
-                # set real server
-                make_vip(m_nodes, True, _vip, vip_iface)
-                _is_vip_set = 1
-
             if m_cnt < 1:
                 log("main node {} but not enough metrics {}".format(m_node, m_cnt))
                 send("ok")
 
                 time.sleep(int(t))
                 continue
+
+            # not set or set to main
+            if _is_vip_set == 0 or _is_vip_set == 2:
+                # set real server
+                if make_vip(m_nodes, True, _vip, vip_iface) is None:
+                    _is_vip_set = 1
+                else:
+                    _is_vip_set = 0
 
             log("main node {} ..set admin".format(m_node))
 
@@ -152,23 +139,8 @@ def main(p, node, t, vip, vip_iface):
 
         #  get flows scenes
         #  start/stop flows
-
         log("start init flows..")
-
-        _strgy = os.environ.get("DROP_STRATEGY", "simple")
-        log("get strategy..{}".format(_strgy))
-
-        _mod = __import__("strategy." + _strgy)
-        _strgy = getattr(_mod, _strgy)
-
-        _strgy.do(p, pstats, m_nodes, get_flows(p))
-
-        #  get services
-        #  start/stop services
-
-        log("start init services..")
-
-        start_init_services(p, pstats, m_nodes)
+        start_init_flows(p, pstats, m_nodes, get_flows(p))
 
         # check vip changed
         _is_vip_set, _vip = check_vip_changed(p, _vip, node)
@@ -182,7 +154,7 @@ def main(p, node, t, vip, vip_iface):
         time.sleep(int(t))
 
 
-def make_hosts(p, node, vip=False):
+def make_hosts(p, node, vip=False, local=False):
     con = connect(p)
     cur = con.cursor()
 
@@ -204,8 +176,22 @@ def make_hosts(p, node, vip=False):
         except:
             _detail = row[2]
 
-        log("system0::node_watch::{}::{}::{}".format(row[0], row[1], _detail))
-        send("system0::node_watch::{}::{}::{}".format(row[0], row[1], _detail))
+        if local:
+
+            cur.execute("""UPDATE node_world
+                           SET active = 0
+                           WHERE date < DATETIME('NOW', '-15 seconds')""")
+
+            cur.execute("""UPDATE node_world
+                            SET detail = '{}', date = CURRENT_TIMESTAMP
+                            WHERE node = '{}' """.format(_detail, node))
+
+            con.commit()
+
+        else:
+
+            log("system0::node_watch::{}::{}::{}".format(row[0], row[1], _detail))
+            send("system0::node_watch::{}::{}::{}".format(row[0], row[1], _detail))
 
     con.close()
 
@@ -266,68 +252,6 @@ def check_vip_changed(p, _vip, node):
     con.close()
 
     return _is_new_vip, _vip
-
-
-def start_init_services(p, pstats, m_nodes):
-
-    con = connect(p)
-    cur = con.cursor()
-
-    log("read service conf...")
-
-    cur.execute("""
-                select detail from node_world
-                 where node = '{}' """.format(m_nodes[0]))
-
-    for row in cur:
-        try:
-            _serv = json.loads(row[0])["service"]
-
-            for k, v in _serv.items():
-                log("...service {}/ code {}".format(k, v))
-
-                _cmd = []
-                v = int(v)
-
-                if v == 0:
-                    _cmd.append("system::all::cast_worker::cmd-exec::{}".
-                                format(json.dumps({"cmd": "systemctl stop {}".format(k)}))
-                                )
-
-                elif v == 1:
-                    _cmd.append("system::{}::cast_worker::cmd-exec::{}".
-                                format(m_nodes[0],
-                                       json.dumps({"cmd": "systemctl start {}".format(k)}))
-                                )
-
-                elif v > 1:
-                    _cmd = ["system::{}::cast_worker::cmd-exec::{}".
-                            format(x, json.dumps({"cmd": "systemctl start {}".format(k)}))
-                            for x in m_nodes[:v]]
-
-                else:
-                    log("...bad code {} service {}".format(v, k))
-
-                log("...service _cmd: {}".format(_cmd))
-
-                # send cmds
-                [send(x) for x in _cmd]
-
-                # send stop other
-                if v > 0:
-                    _cmd2 = ["system::{}::cast_worker::cmd-exec::{}".
-                             format(x, json.dumps({"cmd": "systemctl stop {}".format(k)}))
-                             for x in m_nodes[v:]]
-                    log("...service stop _cmd2: {}".format(_cmd2))
-
-                    [send(x) for x in _cmd2]
-
-        except Exception as e:
-            log(e)
-
-    con.close()
-
-    return
 
 
 def get_active_nodes(p):
@@ -427,6 +351,21 @@ def get_stats(p):
     return data
 
 
+def get_ip_cmds():
+
+    _VIP_CMDS = [
+        "sudo ip a del $(ip -o addr show label {iface}:0|awk '{{ print $4 }}') dev {iface} || true",
+        "sudo ip a add {vip}/255.255.255.255 broadcast {vip} dev {iface} label {iface}:0 || true",
+        "sudo arping -I {iface} -c 2 -S {vip} {vip} || true",
+    ]
+
+    _RSERV_CMDS = [
+        "sudo ip a del $(ip -o addr show label {iface}:0|awk '{{ print $4 }}') dev {iface} || true",
+    ]
+
+    return _VIP_CMDS, _RSERV_CMDS
+
+
 def make_vip(r_servers, is_vip, vip, vip_iface):
     """
     r_servers - list of real servers
@@ -438,10 +377,7 @@ def make_vip(r_servers, is_vip, vip, vip_iface):
     if _strgy == "none":
         return
 
-    if _strgy is None:
-        _VIP_CMDS, _RSERV_CMDS = private.get()
-    else:
-        _VIP_CMDS, _RSERV_CMDS = cloud.get(_strgy)
+    _VIP_CMDS, _RSERV_CMDS = get_ip_cmds()
 
     _vip = vip
     _iface = vip_iface
@@ -453,7 +389,7 @@ def make_vip(r_servers, is_vip, vip, vip_iface):
     log("start make_vip: {} {}".format(is_vip, r_servers))
 
     if is_vip:
-
+        # vip server
         for c in _VIP_CMDS:
             _cmd = c.format(**{"iface": _iface,
                                "vip": _vip
@@ -473,18 +409,16 @@ def make_vip(r_servers, is_vip, vip, vip_iface):
             log(sp.check_output("{}".format(_cmd),
                                 shell=True, stderr=sp.STDOUT))
 
-    return
-
 
 def connect(p):
     return sqlite3.connect(p + '/db/node_collector.db', timeout=3)
 
 
 def get_flows(p):
-    l = glob.glob(p + "/flows/*.json")
+    lst = glob.glob(p + "/flows/*.json")
 
     data = []
-    for i in l:
+    for i in lst:
         with open(i) as f:
             try:
                 data.append(json.loads(f.read()))
@@ -494,5 +428,80 @@ def get_flows(p):
     return data
 
 
+def start_init_flows(p, pstats, m_nodes, pflows):
+
+    for f in pflows:
+        try:
+            f_name, f_active, f_priority, f_ppools = f.get("name"),\
+                f.get("active"), f.get("priority"),\
+                [[y.get("cmd").split("::")[3] for y in x.get("cook")
+                  if y.get("cmd").split("::")[2] == "start_pool"]
+                 for x in f.get("scenes")
+                 if x["name"] == f.get("start_scene")][0]
+        except Exception as e:
+            log("bad flow structure {}: {}".format(f, e))
+            continue
+
+        log("read flow {} {} {} {}".format(f_name, f_active, f_priority, f_ppools))
+
+        # if flow not active stop on all nodes
+        if f_active == 0:
+            log("stop on all nodes..{}".format(f_name))
+            send("system::all::{}::stop".format(f_name))
+
+        elif f_active == 1:
+            # check already started
+            first_start = True
+
+            # need first start for priority 0
+            if f_priority == 0:
+                log("flow {} first start {}".format(f_name, first_start))
+                send("system::all::{}::start".format(f_name))
+
+            elif f_priority == 1:
+                log("start on main node {} {}".format(m_nodes[0], f_name))
+                # force clear
+                send("system::{}::{}::start".format(m_nodes[0], f_name))
+                [send("system::{}::{}::stop".format(x, f_name)) for x in m_nodes[1:]]
+
+            for k, v in pstats.items():
+
+                if k not in m_nodes:
+                    continue
+
+                if set(f_ppools).issubset(set([x[1] for x in v])):
+
+                    log("on node {} flow {} is started".format(k, f_name))
+                    # send("system::{}::{}::start".format(k, f_name))
+
+                    first_start = False
+
+                elif set([x[1] for x in v]).issubset(set(f_ppools)):
+                    log("on node {} flow {} is NOT started".format(k, f_name))
+
+                    # force clear
+                    # send("system::{}::{}::stop".format(k, f_name))
+                    first_start = False or first_start
+
+
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5])
+
+    # read args actor parameters                                               
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--op', type=str, default="None", help='Mode')
+    parser.add_argument('--var-dir', type=str, help='Path to var dir')
+    parser.add_argument('--node', type=str, help='Node name')
+    parser.add_argument('--interval',
+                        type=int,
+                        default=3,
+                        help='Work interval')
+    parser.add_argument('--vip', type=str, help='VIP')
+    parser.add_argument('--vip-iface', type=str, help='VIP iface')
+ 
+    args, _ = parser.parse_known_args()
+
+    if args.op == "make_hosts":
+        make_hosts(args.var_dir, args.node, False, True)
+    else:
+        main(args.var_dir, args.node, args.interval, args.vip, args.vip_iface)

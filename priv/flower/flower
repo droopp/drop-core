@@ -1,4 +1,4 @@
-#!/opt/drop-pyenv/bin/python
+#!/opt/drop-pyenv3/bin/python
 #
 # Flow creater worker
 #
@@ -51,7 +51,7 @@ def get_command(p, args):
 
     try:
 
-        with open(p + args[1] + ".json") as f:
+        with open(f"{p}/{args[1]}.json") as f:
             d = json.loads(f.read())
 
             if args[2] == "start":
@@ -118,4 +118,12 @@ def read_json(p, args):
     send(_SPLIT_MSG_SEQ.join(cmds))
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+
+    # read args actor parameters                                               
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--flower-dir', type=str, help='Path to flows dir')
+
+    args, _ = parser.parse_known_args()
+
+    main(args.flower_dir)

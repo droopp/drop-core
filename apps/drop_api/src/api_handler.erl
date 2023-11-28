@@ -27,15 +27,15 @@ create_req(<<"POST">>, true, Req) ->
 	    Flow = cowboy_req:binding(flow, Req),
         echo(Flow, Req);
 
-create_req(<<"POST">>, false, Req) ->
-	Req2=cowboy_req:reply(400, #{}, <<"Missing body.">>, Req),
 
+create_req(<<"POST">>, false, Req) ->
+	Req2=cowboy_req:reply(400, #{}, <<"Missing body">>, Req),
      {ok, Req2};
+
 
 create_req(_, _, Req) ->
 	%% Method not allowed.
 	Req2=cowboy_req:reply(405, Req),
-
      {ok, Req2}.
 
 
@@ -50,31 +50,30 @@ echo(Flow, Req) ->
 
     L = cowboy_req:body_length(Req),
 
-    ?Debug2(L),
+    ?Trace(L),
 
-    case L of
+    {Pid, Body2, Is_Gzip} = case L of
 
         L when L<?MAX_BODY_REDIRECT -> 
-            Pid = pg2:get_closest_pid(erlang:binary_to_atom(Flow, latin1)),
-            %% Body2 = Body;
-            Is_Gzip = false,
 
-            Body2 = Body;
+            P = get_closest_pid(erlang:binary_to_atom(Flow, latin1)),
+
+            {P, Body, false};
 
         L when L>?MAX_BODY_REDIRECT ->
-            Pid = pg2:get_closest_pid(
+
+            P = get_closest_pid(
                     erlang:binary_to_atom(
                       erlang:iolist_to_binary([Flow, <<"_X">>]), latin1)
                    ),
 
-            Is_Gzip = true,
-            Body2 = base64:encode(zlib:gzip(Body))
+            {P, base64:encode(zlib:gzip(Body)), true}
 
     end,
 
-    ?Debug2({post_req_pid, Pid}),
+    ?Trace({post_req_pid, Pid}),
 
-    case is_pid(Pid) of
+    _ = case is_pid(Pid) of
 
         false ->
             self()!{response, {error, mis_req_pool}};
@@ -94,24 +93,22 @@ echo(Flow, Req) ->
 
 
 info({response, Res}, Req, Is_Gzip) ->
-    %% {response,{ok,[<<"ping">>]}}
-    %%
 
-    ?Debug2({recv_post_req, Res}),
+  ?Trace({recv_post_req, Res}),
 
-    case Res of
+   _ = case Res of
         {ok,[Msg]} ->
 
-         case Is_Gzip of 
+         Msg2 = case Is_Gzip of 
              true ->
-                  Msg2 = uncompress(Msg); %% zlib:gunzip(Msg);
+                  uncompress(Msg); %% zlib:gunzip(Msg);
              _ ->
-                 Msg2 = Msg
+                 Msg
          end,
 
-            cowboy_req:reply(200, 
-                             #{<<"content-type">> => <<"text/plain; charset=utf-8">>}
-    	                    ,msg_to_body(Msg2), Req);
+          cowboy_req:reply(200, 
+                           #{<<"content-type">> => <<"text/plain; charset=utf-8">>}
+    	                   ,msg_to_body(Msg2), Req);
 
         {error, mis_req_pool} ->
             cowboy_req:reply(400, #{}, <<"Missing Registered Pool">>, Req);
@@ -134,8 +131,6 @@ info(Any, Req, State) ->
 
 
 
-
-
 terminate({normal, timeout}, _, _) ->
 	ok;
 
@@ -147,7 +142,6 @@ terminate(_Reason, _Req, _State) ->
 msg_to_body(Body) ->
     case binary:last(Body) =:= 10 of
         true ->
-
             binary:replace(Body, ?SPLIT_MSG_SEQ, <<"\n">>, [global]);
 
         false ->
@@ -167,20 +161,20 @@ body_to_msg(B) ->
         true ->
             Body2 = binary:part(Body, {0, byte_size(Body)-1}),
              Body3 = binary:replace(Body2, <<"\n">>, ?SPLIT_MSG_SEQ, [global]),
-              ?Debug3({Body, Body2, Body3}),
+              ?Trace({Body, Body2, Body3}),
 
               <<Body3/binary, <<"\n">>/binary>>;
 
         false ->
             Body2 = binary:replace(Body, <<"\n">>, ?SPLIT_MSG_SEQ, [global]),
-              ?Debug3({Body, Body2}),
-
+              ?Trace({Body, Body2}),
 
              <<Body2/binary, <<"\n">>/binary>>
     end.
 
 
 uncompress(Bin) ->
+
    Z = zlib:open(),
    zlib:inflateInit(Z, 31),
    
@@ -192,11 +186,23 @@ uncompress(Bin) ->
                                 )
                               ),
    
-   zlib:inflateEnd(Z),
-   zlib:close(Z),
+     zlib:inflateEnd(Z),
+       zlib:close(Z),
 
-     erlang:list_to_binary(Uncompressed).
-
-
+        erlang:list_to_binary(Uncompressed).
 
 
+get_closest_pid(Name) ->
+
+    case pg:get_local_members(Name) of
+        [] ->
+            case pg:get_members(Name) of 
+                [] ->
+                    nil;
+                [P|_] ->
+                    P
+            end;
+
+        [Lp|_] ->
+            Lp
+    end.

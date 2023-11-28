@@ -1,4 +1,4 @@
-#!/opt/drop-pyenv/bin/python
+#!/opt/drop-pyenv3/bin/python
 
 #
 # System init info
@@ -12,7 +12,6 @@ import sys
 import time
 import psutil as ps
 import os
-import docker
 import json
 
 # API
@@ -42,9 +41,6 @@ def main(node, t):
     """
         t - time interval in secs
     """
-
-    msg = read()
-    log("get message: " + msg)
 
     while 1:
 
@@ -86,34 +82,10 @@ def get_ppool_stat(node):
                 ppool[pname] = [cnt + 1, pp + pinfo["cpu_percent"],
                                 mp + pinfo["memory_percent"]]
 
-        except Exception as e:
-            log("error: {}".format(e))
-
-    # docker stats
-
-    if os.environ.get("IS_DOCKER") == "1":
-
-        try:
-
-            c = docker.from_env()
-            plist = []
-            for k in c.containers.list():
-                proc = ps.Process(k.attrs["State"]["Pid"])
+            if "-plugin" in pinfo["cmdline"]:
 
                 # get identity group
-                pname = k.attrs["Config"]["Image"].split(":")[0]
-
-                proc.as_dict(attrs=["pid", "name", "cmdline",
-                                    "cpu_percent", "memory_percent"])
-
-                plist.append((pname, proc))
-
-            time.sleep(1)
-
-            for pname, proc in plist:
-
-                pinfo = proc.as_dict(attrs=["pid", "name", "cmdline",
-                                            "cpu_percent", "memory_percent"])
+                pname = pinfo["cmdline"][pinfo["cmdline"].index("-plugin") + 1]
 
                 cnt, pp, mp = ppool.get(pname, [0, 0, 0])
 
@@ -149,7 +121,7 @@ def get_node_stat(node):
     """
     _trace = '{{"tag":"node_{}", "values":{}, "labels":{} }}'
 
-    mem = map(int, os.popen('free -t -m').readlines()[1].split()[1:])  # ps.virtual_memory()
+    mem = list(map(int, os.popen('free -t -m').readlines()[1].split()[1:]))  # ps.virtual_memory()
     disk = ps.disk_usage("/")
     cpu_p = ps.cpu_percent()
 
@@ -172,4 +144,16 @@ def get_node_stat(node):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], sys.argv[2])
+
+    # read args actor parameters                                               
+    import argparse                                                            
+    parser = argparse.ArgumentParser()                                         
+    parser.add_argument('--node', type=str, help='Node name')       
+    parser.add_argument('--interval',                                       
+                        type=int,                                              
+                        default=5,                                             
+                        help='Pull time interval')                              
+                                                                               
+    args, _ = parser.parse_known_args()  
+
+    main(args.node, args.interval)

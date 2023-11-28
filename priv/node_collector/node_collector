@@ -1,4 +1,4 @@
-#!/opt/drop-pyenv/bin/python
+#!/opt/drop-pyenv3/bin/python
 
 #
 # Collector node worker
@@ -207,7 +207,7 @@ def clear_last_rows(cur, t):
     cur.execute("DELETE FROM node_stat WHERE date < DATETIME('NOW', '-{} minutes');".format(t))
     cur.execute("DELETE FROM ppool_stat WHERE date < DATETIME('NOW', '-{} minutes');".format(t))
     cur.execute("DELETE FROM ppool_list WHERE date < DATETIME('NOW', '-{} minutes');".format(t))
-    cur.execute("UPDATE node_world SET active = 0 WHERE date < DATETIME('NOW', '-{} minutes');".format(1))
+    cur.execute("UPDATE node_world SET active = 0 WHERE date < DATETIME('NOW', '-{} seconds');".format(30))
     cur.execute("DELETE FROM node_list WHERE date < DATETIME('NOW', '-{} minutes');".format(t*3))
 
 
@@ -356,4 +356,20 @@ def main(p, cnt, t):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], int(sys.argv[2]), int(sys.argv[3]))
+
+    # read args actor parameters                                               
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--db', type=str, help='Path to db')
+    parser.add_argument('--flush-count',
+                        type=int,
+                        default=1000,
+                        help='Count to flush to db')
+    parser.add_argument('--flush-time',
+                        type=int,
+                        default=5000,
+                        help='Time to flush to db')
+
+    args, _ = parser.parse_known_args()
+
+    main(args.db, args.flush_count, args.flush_time)
